@@ -4,11 +4,15 @@
  *
  * 列出所有本地草稿，支持单条删除
  */
-import { ref, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
 import { getAllDrafts, deleteDraft, draftKey, type DraftRecord } from '@/utils/db'
 import { useAuthStore } from '@/stores/auth'
 import { useEditorStore } from '@/stores/editor'
+
+const emit = defineEmits<{
+  'load-draft': [record: DraftRecord]
+}>()
 
 const auth = useAuthStore()
 const editor = useEditorStore()
@@ -31,7 +35,7 @@ async function loadDrafts() {
 
 function handleLoad(record: DraftRecord) {
   emit('load-draft', record)
-  emit('update:visible', false)
+  editor.draftDrawerVisible = false
 }
 
 async function handleDelete(record: DraftRecord) {
@@ -44,8 +48,8 @@ async function handleDelete(record: DraftRecord) {
   await loadDrafts()
 }
 
-watch(() => props.visible, (val) => {
-  if (val) loadDrafts()
+onMounted(() => {
+  loadDrafts()
 })
 
 function formatTime(ts: number) {
@@ -55,11 +59,11 @@ function formatTime(ts: number) {
 
 <template>
   <el-drawer
-    :model-value="visible"
+    :model-value="true"
     direction="rtl"
     size="360px"
     title="草稿清单"
-    @update:model-value="emit('update:visible', $event)"
+    @update:model-value="editor.draftDrawerVisible = $event"
   >
     <div v-if="loading" class="draft-loading">加载中...</div>
 

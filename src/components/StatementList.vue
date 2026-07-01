@@ -6,7 +6,7 @@
  */
 import { ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Tickets } from '@element-plus/icons-vue'
+import { Tickets, RefreshRight } from '@element-plus/icons-vue'
 import { searchData } from '@/api/nameson'
 import { draftKey, getDraft } from '@/utils/db'
 import { useAuthStore } from '@/stores/auth'
@@ -84,6 +84,7 @@ watch(() => editor.currentObjectId, (id) => {
   <div class="statement-list flex-col">
     <div class="panel-header">
       <span>语句清单</span>
+      <el-button text size="small" :icon="RefreshRight" :loading="loading" @click="editor.currentObjectId && loadStatements(editor.currentObjectId)" />
     </div>
     <div class="panel-body">
       <div
@@ -96,7 +97,12 @@ watch(() => editor.currentObjectId, (id) => {
         <div class="statement-seq">{{ item.tabseq }}</div>
         <div class="statement-info">
           <div class="statement-name">{{ item.dsname }}</div>
-          <div class="statement-meta">{{ item.updUser }} · {{ item.updDttm?.substring(0, 10) }}</div>
+          <div class="statement-meta">
+            {{ item.updUser }} ·
+            <el-tooltip :content="item.updDttm" placement="top" :show-after="400">
+              <span>{{ item.updDttm?.substring(0, 10) }}</span>
+            </el-tooltip>
+          </div>
         </div>
         <el-badge v-if="item._hasDraft" :value="''" :is-dot="true" class="draft-badge" />
       </div>

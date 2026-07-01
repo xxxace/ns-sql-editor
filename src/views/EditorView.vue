@@ -278,8 +278,7 @@ watch(() => editor.currentTabseq, (seq) => {
 
       <!-- 草稿抽屉 -->
       <DraftDrawer
-        :visible="editor.draftDrawerVisible"
-        @update:visible="editor.draftDrawerVisible = $event"
+        v-if="editor.draftDrawerVisible"
         @load-draft="handleDraftLoad"
       />
     </template>
