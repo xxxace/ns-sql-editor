@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
+    "@nameson/sqlutils": "^1.0.0-alpha.6",
     "element-plus": "^2.14.2",
     "localforage": "^1.10.0",
     "monaco-editor": "^0.55.1",

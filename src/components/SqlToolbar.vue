@@ -25,7 +25,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useEditorStore } from '@/stores/editor'
 import { saveData } from '@/api/nameson'
 import { saveDraft, draftKey, deleteDraft } from '@/utils/db'
-import { buildUpdateModel } from '@/utils/dataModel'
+// @ts-ignore
+import { generateDataModel } from '@nameson/sqlutils'
 
 const emit = defineEmits<{
   'open-login': []
@@ -87,14 +88,18 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    const model = buildUpdateModel(
-      editor.currentObjectId,
-      editor.currentTabseq,
-      editor.currentSql,
-      editor.originalSql,
-      editor.currentSortby,
-      editor.originalSortby,
+    const dataModel = generateDataModel({
+      tableName: 'PRJOBJDS',
+      user: auth.currentUser,
+    })
+    // NUMBER 类型字段声明：TABSEQ 是数字主键，避免 PKvalues 被错误加引号
+    dataModel.setKeyTypeMap({ NUMBER: ['TABSEQ'] })
+    dataModel.setPKvalues({ OBJECTID: editor.currentObjectId, TABSEQ: editor.currentTabseq })
+    dataModel.setColdatas(
+      { DBQUERY: editor.currentSql, SORTBYCONTENT: editor.currentSortby },
+      { DBQUERY: editor.originalSql, SORTBYCONTENT: editor.originalSortby },
     )
+    const model = dataModel.build()
     const res = await saveData(auth.serverUrl, [model])
     if (res.statusCode === '1') {
       // 更新 original 为当前值

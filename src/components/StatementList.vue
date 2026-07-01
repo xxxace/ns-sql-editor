@@ -9,6 +9,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Tickets, RefreshRight } from '@element-plus/icons-vue'
 import { searchData } from '@/api/nameson'
 import { draftKey, getDraft } from '@/utils/db'
+// @ts-ignore
+import { generateWhere } from '@nameson/sqlutils'
 import { useAuthStore } from '@/stores/auth'
 import { useEditorStore, type StatementItem } from '@/stores/editor'
 
@@ -23,7 +25,7 @@ async function loadStatements(objectId: string) {
   if (!objectId || !auth.isLoggedIn) return
   loading.value = true
   try {
-    const where = `OBJECTID='${objectId}'`
+    const where = generateWhere({ OBJECTID: objectId })
     const res = await searchData(auth.serverUrl, LIST_SQL_PREFIX, where, 'ORDER BY TABSEQ')
     if (res.statusCode === '1' && Array.isArray(res.data)) {
       const items: StatementItem[] = res.data.map((row: Record<string, unknown>) => ({

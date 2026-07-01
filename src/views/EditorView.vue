@@ -13,6 +13,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useEditorStore } from '@/stores/editor'
 import { searchData } from '@/api/nameson'
 import { getDraft, draftKey, type DraftRecord } from '@/utils/db'
+// @ts-ignore
+import { generateWhere } from '@nameson/sqlutils'
 import LoginDialog from '@/components/LoginDialog.vue'
 import MenuTree from '@/components/MenuTree.vue'
 import StatementList from '@/components/StatementList.vue'
@@ -143,7 +145,7 @@ async function loadStatement(skipDraftPrompt = false) {
       return
     }
 
-    const where = `OBJECTID='${objId}' AND TABSEQ=${seq}`
+    const where = generateWhere({ OBJECTID: objId, TABSEQ: seq })
     const res = await searchData(auth.serverUrl, DETAIL_SQL, where)
     if (res.statusCode === '1' && Array.isArray(res.data) && res.data.length > 0) {
       const row = res.data[0] as Record<string, unknown>

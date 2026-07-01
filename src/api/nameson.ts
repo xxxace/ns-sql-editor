@@ -5,7 +5,7 @@
  * 调用方无需手动传递。
  */
 
-import type { DataModelItem } from '@/utils/dataModel'
+import type { ColdataModel } from '@nameson/sqlutils'
 import { useAuthStore } from '@/stores/auth'
 
 // ---- 类型 ----
@@ -111,7 +111,7 @@ export async function searchData(
  */
 export async function saveData(
   serverUrl: string,
-  dataModel: DataModelItem[],
+  dataModel: ColdataModel[],
 ): Promise<ApiResponse> {
   const authFields = await injectAuth()
   const url = `${serverUrl}/SaveDatas`
