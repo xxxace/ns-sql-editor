@@ -160,7 +160,7 @@ watch(
 .statement-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 2px;
   padding: 7px;
   cursor: pointer;
   transition: background 0.1s;
