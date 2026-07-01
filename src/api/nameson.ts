@@ -4,7 +4,7 @@
  * 所有接口自动从 authStore 注入 p_user / p_sessionID，
  * 调用方无需手动传递。
  */
-
+// @ts-ignore
 import type { ColdataModel } from '@nameson/sqlutils'
 import { useAuthStore } from '@/stores/auth'
 
@@ -36,20 +36,6 @@ function injectAuth(): { p_user: string; p_sessionID: string } {
     p_user: auth.currentUser,
     p_sessionID: String(auth.sessionId),
   }
-}
-
-async function post(serverUrl: string, endpoint: string, params: Record<string, string>) {
-  const authFields = await injectAuth()
-  const url = `${serverUrl}${endpoint}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: buildForm({ ...params, ...authFields }),
-  })
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}: ${endpoint}`)
-  }
-  return res.json()
 }
 
 // ---- 公开 API ----

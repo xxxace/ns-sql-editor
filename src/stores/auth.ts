@@ -11,7 +11,6 @@ import {
   getAllAccounts,
   saveAccount,
   deleteAccount,
-  updateSession,
   type StoredAccount,
 } from '@/utils/db'
 import { ElMessage } from 'element-plus'
@@ -70,6 +69,7 @@ export const useAuthStore = defineStore('auth', () => {
         sessionId: sid,
         lastLoginAt: Date.now(),
         createdAt: Date.now(),
+        updatedAt: Date.now(),
       })
       await loadAccounts()
       ElMessage.success('连接成功')

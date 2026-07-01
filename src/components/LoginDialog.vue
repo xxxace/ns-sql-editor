@@ -10,7 +10,6 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, Connection, Plus, Delete, Download, Loading } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { login as apiLogin } from '@/api/nameson'
 import type { StoredAccount } from '@/utils/db'
 
 const props = defineProps<{

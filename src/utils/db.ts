@@ -23,6 +23,8 @@ export interface StoredAccount {
   lastLoginAt: number
   /** 创建时间 */
   createdAt: number
+  /** 更新时间 */
+  updatedAt: number
 }
 
 export interface DraftRecord {

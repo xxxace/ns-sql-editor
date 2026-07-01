@@ -6,7 +6,7 @@
  */
 import { ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Tickets, RefreshRight } from "@element-plus/icons-vue";
+import { RefreshRight } from "@element-plus/icons-vue";
 import { searchData } from "@/api/nameson";
 import { draftKey, getDraft } from "@/utils/db";
 // @ts-ignore

@@ -65,7 +65,7 @@ watch(
     nextTick(() => {
       syncingFromStore = false
       // 恢复锁定（仅在原本锁定的情况下）
-      if (wasReadOnly) editor.updateOptions({ readOnly: true })
+      if (wasReadOnly && editor) editor.updateOptions({ readOnly: true })
     })
   },
 )
