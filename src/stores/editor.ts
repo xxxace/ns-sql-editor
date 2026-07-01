@@ -62,6 +62,10 @@ export const useEditorStore = defineStore('editor', () => {
   const diffVisible = ref(false)
   /** 草稿抽屉是否打开 */
   const draftDrawerVisible = ref(false)
+  /** 是否正在加载远程语句 */
+  const isLoadingSql = ref(false)
+  /** 从草稿跳转时跳过 loadStatement watch 触发 */
+  const skipNextLoad = ref(false)
 
   // ===== 计算 =====
   const currentObjectId = computed(() => selectedMenu.value?.objectId ?? '')
@@ -159,6 +163,8 @@ export const useEditorStore = defineStore('editor', () => {
     isFocusMode,
     diffVisible,
     draftDrawerVisible,
+    isLoadingSql,
+    skipNextLoad,
     // 计算
     currentObjectId,
     currentTabseq,

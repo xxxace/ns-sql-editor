@@ -4,7 +4,7 @@
  *
  * 在编辑区下方展开，对比当前修改 vs 原始版本
  */
-import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import * as monaco from 'monaco-editor'
 import { Close } from '@element-plus/icons-vue'
 import { useEditorStore } from '@/stores/editor'
@@ -43,6 +43,14 @@ function initDiff() {
 function close() {
   editor.diffVisible = false
 }
+
+/** 组件挂载时若 diffVisible 已为 true，直接初始化（v-if 创建的组件不受 watch 触发） */
+onMounted(async () => {
+  if (editor.diffVisible) {
+    await nextTick()
+    initDiff()
+  }
+})
 
 watch(() => editor.diffVisible, async (val) => {
   if (val) {

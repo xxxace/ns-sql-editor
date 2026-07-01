@@ -5,7 +5,7 @@
  * 加载菜单：SELECT OBJECTID,ENAME,CNAME FROM PRJOBJECT WHERE MAPTYPE='VUE' ORDER BY OBJECTID DESC
  */
 import { ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { RefreshRight, Fold } from '@element-plus/icons-vue'
 import { searchData } from '@/api/nameson'
 import { useAuthStore } from '@/stores/auth'
@@ -40,7 +40,23 @@ async function loadMenu() {
   }
 }
 
-function handleSelect(node: MenuNode) {
+async function handleSelect(node: MenuNode) {
+  // loading 中禁止切换
+  if (editor.isLoadingSql) return
+  // 已在当前菜单且无未保存修改 → 无需操作
+  if (editor.selectedMenu?.objectId === node.objectId) return
+  // 有未保存修改时提醒用户
+  if (editor.isModified) {
+    try {
+      await ElMessageBox.confirm(
+        '当前语句有未保存的修改，切换将丢失这些变更。确定切换吗？',
+        '未保存的修改',
+        { confirmButtonText: '放弃并切换', cancelButtonText: '取消', type: 'warning' },
+      )
+    } catch {
+      return
+    }
+  }
   editor.selectMenu(node)
 }
 
@@ -107,7 +123,7 @@ watch(() => auth.isLoggedIn, (val) => {
 
 .menu-item-ename {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ns-text-muted);
   font-family: var(--ns-font-mono);
   margin-top: 1px;

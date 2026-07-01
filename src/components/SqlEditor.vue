@@ -36,15 +36,24 @@ onBeforeUnmount(() => {
   editor = null
 })
 
-// Store → Monaco（仅在语句切换时同步）
+// Store → Monaco（使用 executeEdits 保留 undo 栈，而非 setValue 清空历史）
 watch(
   () => store.currentSql,
   (val) => {
     if (!editor) return
+    const model = editor.getModel()
+    if (!model) return
     const modelVal = editor.getValue()
     if (modelVal === val) return
     syncingFromStore = true
-    editor.setValue(val ?? '')
+    // executeEdits 会将替换操作推入 undo 栈，Ctrl+Z 可回退
+    editor.executeEdits('store-sync', [{
+      range: model.getFullModelRange(),
+      text: val ?? '',
+      forceMoveMarkers: true,
+    }])
+    // 格式化/回滚等操作后推送 undo stop，使一次 Ctrl+Z 回退整段变更
+    editor.pushUndoStop()
     nextTick(() => { syncingFromStore = false })
   },
 )

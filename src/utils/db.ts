@@ -27,6 +27,10 @@ export interface StoredAccount {
 
 export interface DraftRecord {
   key: string
+  /** 所属连接名，用于隔离不同连接的草稿 */
+  connectionName: string
+  objectId: string
+  tabseq: number
   sql: string
   sortby: string
   dsname: string
@@ -68,9 +72,9 @@ export async function updateSession(name: string, sessionId: number): Promise<vo
 
 // ===== Drafts =====
 
-/** 生成草稿 key：draft_{OBJECTID}_{TABSEQ} */
-export function draftKey(objectId: string, tabseq: number): string {
-  return `draft_${objectId}_${tabseq}`
+/** 生成草稿 key：draft_{连接名}_{OBJECTID}_{TABSEQ} */
+export function draftKey(connectionName: string, objectId: string, tabseq: number): string {
+  return `draft_${connectionName}_${objectId}_${tabseq}`
 }
 
 export async function getDraft(key: string): Promise<DraftRecord | null> {
@@ -85,10 +89,14 @@ export async function deleteDraft(key: string): Promise<void> {
   await draftsStore.removeItem(key)
 }
 
-export async function getAllDrafts(): Promise<DraftRecord[]> {
+/** 获取当前连接的所有草稿，按保存时间倒序 */
+export async function getAllDrafts(connectionName: string): Promise<DraftRecord[]> {
+  const prefix = `draft_${connectionName}_`
   const result: DraftRecord[] = []
-  await draftsStore.iterate<DraftRecord, void>((value) => {
-    result.push(value)
+  await draftsStore.iterate<DraftRecord, void>((value, key) => {
+    if (key.startsWith(prefix)) {
+      result.push(value)
+    }
   })
   result.sort((a, b) => b.savedAt - a.savedAt)
   return result

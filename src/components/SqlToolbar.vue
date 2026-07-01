@@ -18,7 +18,7 @@ import { ref } from 'vue'
 import { ElMessage, ElTooltip } from 'element-plus'
 import {
   Plus, Switch, Brush, Upload, RefreshLeft,
-  DocumentCopy, View, FullScreen, Close,
+  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets,
 } from '@element-plus/icons-vue'
 import { format as sqlFormat } from 'sql-formatter'
 import { useAuthStore } from '@/stores/auth'
@@ -29,6 +29,7 @@ import { buildUpdateModel } from '@/utils/dataModel'
 
 const emit = defineEmits<{
   'open-login': []
+  'open-login-new': []
   'format': []
   'save-draft': []
   'toggle-draft-drawer': []
@@ -42,7 +43,7 @@ const saving = ref(false)
 // ---- 动作 ----
 
 function handleAddConnection() {
-  emit('open-login')
+  emit('open-login-new')
 }
 
 function handleSwitchConnection() {
@@ -54,20 +55,28 @@ function handleFormat() {
     ElMessage.warning('没有可格式化的内容')
     return
   }
-  try {
-    const formatted = sqlFormat(editor.currentSql, {
-      language: 'plsql',
-      tabWidth: 2,
-      useTabs: false,
-      keywordCase: 'upper',
-      linesBetweenQueries: 2,
-    })
-    editor.setSql(formatted, false)
-    editor.checkModified()
-    ElMessage.success('格式化完成')
-  } catch {
-    ElMessage.warning('格式化失败，请检查 SQL 语法')
+  // 依次尝试 plsql → sql，覆盖 Oracle 特有语法
+  const dialects: Array<'plsql' | 'sql'> = ['plsql', 'sql']
+  for (const lang of dialects) {
+    try {
+      const formatted = sqlFormat(editor.currentSql, {
+        language: lang,
+        tabWidth: 2,
+        useTabs: false,
+        keywordCase: 'upper',
+        linesBetweenQueries: 2,
+        denseOperators: false,
+        newlineBeforeSemicolon: false,
+      })
+      editor.setSql(formatted, false)
+      editor.checkModified()
+      ElMessage.success(`格式化完成 (${lang === 'plsql' ? 'Oracle PL/SQL' : '通用 SQL'})`)
+      return
+    } catch {
+      // fallback to next dialect
+    }
   }
+  ElMessage.warning('格式化失败，SQL 包含无法识别的语法，请检查后重试')
 }
 
 async function handleSave() {
@@ -93,7 +102,7 @@ async function handleSave() {
       editor.setSortby(editor.currentSortby, true)
       editor.isModified = false
       // 删除草稿
-      const key = draftKey(editor.currentObjectId, editor.currentTabseq)
+      const key = draftKey(auth.currentName, editor.currentObjectId, editor.currentTabseq)
       await deleteDraft(key)
       editor.hasDraft = false
       ElMessage.success('已更新到数据库')
@@ -114,15 +123,23 @@ function handleRollback() {
   ElMessage.info('已回滚到原始版本')
 }
 
+function handleDraftCommand(cmd: string) {
+  if (cmd === 'save') handleSaveDraft()
+  if (cmd === 'manage') emit('toggle-draft-drawer')
+}
+
 async function handleSaveDraft() {
   if (!editor.currentSql.trim() || !editor.selectedStatement) {
     ElMessage.warning('请先选择一条语句')
     return
   }
   try {
-    const key = draftKey(editor.currentObjectId, editor.currentTabseq)
+    const key = draftKey(auth.currentName, editor.currentObjectId, editor.currentTabseq)
     await saveDraft({
       key,
+      connectionName: auth.currentName,
+      objectId: editor.currentObjectId,
+      tabseq: editor.currentTabseq,
       sql: editor.currentSql,
       sortby: editor.currentSortby,
       dsname: editor.selectedStatement.dsname,
@@ -161,19 +178,30 @@ function handleFocusMode() {
     <!-- 操作区 -->
     <div class="toolbar-section">
       <el-tooltip content="格式化 SQL" placement="bottom">
-        <el-button size="small" text :icon="Brush" :disabled="!editor.currentSql" @click="handleFormat">格式化</el-button>
+        <el-button size="small" text :icon="Brush" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleFormat">格式化</el-button>
       </el-tooltip>
       <el-tooltip content="更新到数据库" placement="bottom">
-        <el-button size="small" text :icon="Upload" :loading="saving" :disabled="!editor.isModified" @click="handleSave">保存</el-button>
+        <el-button size="small" text :icon="Upload" :loading="saving" :disabled="!editor.isModified || editor.isLoadingSql" @click="handleSave">保存</el-button>
       </el-tooltip>
       <el-tooltip content="回滚到原始版本" placement="bottom">
-        <el-button size="small" text :icon="RefreshLeft" :disabled="!editor.isModified" @click="handleRollback">回滚</el-button>
+        <el-button size="small" text :icon="RefreshLeft" :disabled="!editor.isModified || editor.isLoadingSql" @click="handleRollback">回滚</el-button>
       </el-tooltip>
-      <el-tooltip content="保存草稿（本地缓存）" placement="bottom">
-        <el-button size="small" text :icon="DocumentCopy" :disabled="!editor.currentSql" @click="handleSaveDraft">草稿</el-button>
-      </el-tooltip>
+      <el-dropdown trigger="click" @command="handleDraftCommand">
+        <el-button size="small" text :icon="DocumentCopy">
+          草稿
+          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+        </el-button>
+        <template #dropdown>
+          <el-dropdown-item command="save" :disabled="!editor.selectedStatement || editor.isLoadingSql">
+            <el-icon><DocumentCopy /></el-icon>保存当前草稿
+          </el-dropdown-item>
+          <el-dropdown-item command="manage">
+            <el-icon><Tickets /></el-icon>管理草稿
+          </el-dropdown-item>
+        </template>
+      </el-dropdown>
       <el-tooltip content="对比变更" placement="bottom">
-        <el-button size="small" text :icon="View" :disabled="!editor.currentSql" @click="handleDiff">Diff</el-button>
+        <el-button size="small" text :icon="View" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleDiff">Diff</el-button>
       </el-tooltip>
     </div>
 

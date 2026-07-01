@@ -6,26 +6,24 @@
  */
 import { ref, watch } from 'vue'
 import { Delete } from '@element-plus/icons-vue'
-import { getAllDrafts, deleteDraft, type DraftRecord } from '@/utils/db'
+import { getAllDrafts, deleteDraft, draftKey, type DraftRecord } from '@/utils/db'
+import { useAuthStore } from '@/stores/auth'
 import { useEditorStore } from '@/stores/editor'
 
-const props = defineProps<{
-  visible: boolean
-}>()
-
-const emit = defineEmits<{
-  'update:visible': [value: boolean]
-  'load-draft': [record: DraftRecord]
-}>()
-
+const auth = useAuthStore()
 const editor = useEditorStore()
+
 const drafts = ref<DraftRecord[]>([])
 const loading = ref(false)
 
 async function loadDrafts() {
+  if (!auth.currentName) {
+    drafts.value = []
+    return
+  }
   loading.value = true
   try {
-    drafts.value = await getAllDrafts()
+    drafts.value = await getAllDrafts(auth.currentName)
   } finally {
     loading.value = false
   }
@@ -39,7 +37,7 @@ function handleLoad(record: DraftRecord) {
 async function handleDelete(record: DraftRecord) {
   await deleteDraft(record.key)
   // 如果删除的是当前语句的草稿，清除角标
-  const currentKey = `draft_${editor.currentObjectId}_${editor.currentTabseq}`
+  const currentKey = draftKey(auth.currentName, editor.currentObjectId, editor.currentTabseq)
   if (record.key === currentKey) {
     editor.hasDraft = false
   }
@@ -52,11 +50,6 @@ watch(() => props.visible, (val) => {
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleString()
-}
-
-function parseKey(key: string) {
-  const parts = key.split('_')
-  return { objectId: parts[1] ?? '', tabseq: parts[2] ?? '' }
 }
 </script>
 
@@ -77,7 +70,7 @@ function parseKey(key: string) {
     <div v-else class="draft-list">
       <div v-for="d in drafts" :key="d.key" class="draft-item" @click="handleLoad(d)">
         <div class="draft-info">
-          <div class="draft-title">{{ d.dsname || parseKey(d.key).objectId + '#' + parseKey(d.key).tabseq }}</div>
+          <div class="draft-title">{{ d.dsname || d.objectId + '#' + d.tabseq }}</div>
           <div class="draft-meta">
             保存于 {{ formatTime(d.savedAt) }}
           </div>

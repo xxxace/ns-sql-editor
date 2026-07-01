@@ -5,7 +5,7 @@
  * 加载：SELECT OBJECTID,TABSEQ,DSNAME,UPDUSER,UPDDTTM FROM PRJOBJDS WHERE OBJECTID=... ORDER BY TABSEQ
  */
 import { ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Tickets } from '@element-plus/icons-vue'
 import { searchData } from '@/api/nameson'
 import { draftKey, getDraft } from '@/utils/db'
@@ -48,15 +48,29 @@ async function loadStatements(objectId: string) {
 
 async function checkDrafts(items: StatementItem[]) {
   for (const item of items) {
-    const key = draftKey(item.objectId, item.tabseq)
+    const key = draftKey(auth.currentName, item.objectId, item.tabseq)
     const draft = await getDraft(key)
     if (draft) {
-      item._hasDraft = true as unknown as string
+      (item as any)._hasDraft = true
     }
   }
 }
 
 async function handleSelect(item: StatementItem & { _hasDraft?: string }) {
+  // loading 中禁止切换
+  if (editor.isLoadingSql) return
+  // 有未保存修改时提醒用户
+  if (editor.isModified && editor.selectedStatement?.tabseq !== item.tabseq) {
+    try {
+      await ElMessageBox.confirm(
+        '当前语句有未保存的修改，切换将丢失这些变更。确定切换吗？',
+        '未保存的修改',
+        { confirmButtonText: '放弃并切换', cancelButtonText: '取消', type: 'warning' },
+      )
+    } catch {
+      return
+    }
+  }
   editor.selectStatement(item)
 }
 
@@ -144,7 +158,7 @@ watch(() => editor.currentObjectId, (id) => {
 }
 
 .statement-meta {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ns-text-muted);
   margin-top: 1px;
   font-family: var(--ns-font-mono);

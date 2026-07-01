@@ -15,6 +15,10 @@ import type { StoredAccount } from '@/utils/db'
 
 const props = defineProps<{
   visible: boolean
+  /** 是否允许关闭弹窗。首次登录=false（强制登录），切换连接=true */
+  closable?: boolean
+  /** 默认激活的 tab */
+  defaultTab?: 'saved' | 'new'
 }>()
 
 const emit = defineEmits<{
@@ -25,7 +29,7 @@ const emit = defineEmits<{
 const auth = useAuthStore()
 
 // ---- 表单 ----
-const activeTab = ref<'new' | 'saved'>('saved')
+const activeTab = ref<'new' | 'saved'>(props.defaultTab ?? 'saved')
 
 const form = reactive({
   name: '',
@@ -116,9 +120,9 @@ function handleClose() {
 <template>
   <el-dialog
     :model-value="visible"
-    :show-close="false"
-    :close-on-click-modal="false"
-    :close-on-press-escape="false"
+    :show-close="closable"
+    :close-on-click-modal="closable"
+    :close-on-press-escape="closable"
     width="480px"
     class="login-dialog"
     @update:model-value="handleClose"
@@ -277,7 +281,7 @@ function handleClose() {
 }
 
 .account-time {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ns-text-muted);
   margin-top: 2px;
 }

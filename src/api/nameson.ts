@@ -61,7 +61,7 @@ export async function login(serverUrl: string, user: string, pwd: string): Promi
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: buildForm({
-      p_user: user,
+      pUser: user,
       pPwd: pwd,
       pDBPwd: pwd,
       pPriv: 'true',
