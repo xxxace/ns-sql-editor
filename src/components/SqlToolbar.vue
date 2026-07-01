@@ -16,7 +16,7 @@
  */
 
 import { ref } from 'vue'
-import { ElMessage, ElTooltip } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTooltip } from 'element-plus'
 import {
   Plus, Switch, Brush, Upload, RefreshLeft,
   DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock,
@@ -85,6 +85,19 @@ async function handleSave() {
   if (!editor.currentSql.trim()) return
   if (!editor.selectedStatement) {
     ElMessage.warning('请先选择一条语句')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '确认将修改保存到数据库？',
+      '保存确认',
+      {
+        confirmButtonText: '确认保存',
+        cancelButtonText: '取消',
+        type: 'warning',
+      },
+    )
+  } catch {
     return
   }
   saving.value = true
