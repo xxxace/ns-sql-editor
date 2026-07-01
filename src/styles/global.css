@@ -1,0 +1,176 @@
+/* ===== NS SQL Editor — Global Dark Theme ===== */
+
+:root {
+  /* Industrial tool palette — dark base */
+  --ns-bg-900: #0f0f12;
+  --ns-bg-800: #141418;
+  --ns-bg-750: #18181d;
+  --ns-bg-700: #1c1c22;
+  --ns-bg-600: #23232a;
+  --ns-bg-500: #2a2a33;
+  --ns-bg-400: #343440;
+
+  --ns-text-primary: #d4d4dc;
+  --ns-text-secondary: #8b8b9e;
+  --ns-text-muted: #5c5c6e;
+
+  --ns-accent: #4a9eff;
+  --ns-accent-dim: #3d7ae5;
+  --ns-success: #4caf88;
+  --ns-warning: #e2a040;
+  --ns-error: #e0556a;
+  --ns-info: #56b6c2;
+
+  --ns-border: #2a2a35;
+  --ns-border-focus: #4a9eff;
+  --ns-scrollbar: #3a3a4a;
+  --ns-scrollbar-hover: #50506a;
+
+  /* Element Plus dark overrides */
+  --el-bg-color: var(--ns-bg-700);
+  --el-bg-color-overlay: var(--ns-bg-600);
+  --el-bg-color-page: var(--ns-bg-800);
+  --el-text-color-primary: var(--ns-text-primary);
+  --el-text-color-regular: var(--ns-text-secondary);
+  --el-border-color: var(--ns-border);
+  --el-fill-color: var(--ns-bg-500);
+  --el-fill-color-blank: var(--ns-bg-700);
+  --el-fill-color-light: var(--ns-bg-400);
+  --el-color-primary: var(--ns-accent);
+  --el-color-success: var(--ns-success);
+  --el-color-warning: var(--ns-warning);
+  --el-color-danger: var(--ns-error);
+  --el-color-info: var(--ns-info);
+
+  /* Font stack */
+  --ns-font-mono: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --ns-font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--ns-font-ui);
+  background: var(--ns-bg-900);
+  color: var(--ns-text-primary);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--ns-scrollbar);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ns-scrollbar-hover);
+}
+
+/* ===== Focus ring ===== */
+:focus-visible {
+  outline: 1px solid var(--ns-border-focus);
+  outline-offset: -1px;
+}
+
+/* ===== Selection ===== */
+::selection {
+  background: rgba(74, 158, 255, 0.25);
+  color: inherit;
+}
+
+/* ===== Element Plus overrides ===== */
+.el-message-box {
+  --el-messagebox-bg-color: var(--ns-bg-600);
+  --el-messagebox-title-color: var(--ns-text-primary);
+  --el-messagebox-content-color: var(--ns-text-secondary);
+}
+
+.el-dialog {
+  --el-dialog-bg-color: var(--ns-bg-600);
+  --el-dialog-title-font-size: 15px;
+}
+
+.el-tree {
+  --el-tree-node-hover-bg-color: var(--ns-bg-400);
+}
+
+.el-menu {
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--ns-text-secondary);
+  --el-menu-hover-bg-color: var(--ns-bg-400);
+}
+
+/* ===== Layout helpers ===== */
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+/* ===== Compact panel style ===== */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--ns-bg-750);
+  border-bottom: 1px solid var(--ns-border);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--ns-text-secondary);
+  min-height: 32px;
+  user-select: none;
+}
+
+.panel-body {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
+}

@@ -1,0 +1,86 @@
+application/x-www-form-urlencoded
+登录接口：/Logon_JS
+pUser:	用户名
+pPwd:	密码
+pDBPwd:	密码
+pPriv:true
+pID:1
+
+{
+  "statusCode": "1",
+  "message": "登录成功!",
+  "data": 44616, // Sessionid
+  "PsessionID": 0
+}
+
+查询接口：/SearchData
+参数
+p_Dbquery:相应页面的查询语句 p_Where:相应页面组合的查询条件 字符串格式：列1的名=列1的值 AND 列2的名=列2的值 例如：YEARS='2023' AND PSSN='FW' p_sortby:相应页面的排序内容 pUser:用户名
+p_sessionID:登录成功返回的Sessionid
+
+保存接口：/SaveDatas
+p_DataModel:保存的内容数组(表名、操作类型、主键信息\保存的内容列数组（列名、改前的值、改后的值信息）) pUser:用户名
+p_sessionID:登录成功返回的Sessionid
+
+风格偏SQL开发工具，紧凑，美观
+
+用户登录界面
+1.用户配置服务器地址：http://xx.x.x.xx:9001/xxxxx.asmx
+2.账号，密码
+3.登录后连接上，记录返回的sessionid,后面接口会用到
+4.缓存每一个登录成功的账户,密码,服务器配置，连接名，session
+5.允许手动导出清单
+6.所以要有个账户管理功能
+7.每次切换都要重新登录一次，还要提供重连功能，允许用户主动重新登陆刷新session
+
+编辑模块：
+登录成功后左侧有菜单树（菜单加载）
+右边是两块，一块是语句清单（语句清单加载）
+一块是SQL编辑器（语句加载）
+还要留一小块地方给SORTBYCONTENT编辑
+
+专注模式，收缩起【菜单树】【语句清单】
+sqlformat：格式化语句功能
+diff：用户可以看到对比，知道自己改了什么
+更新语句：允许修改完后更新到数据库（调用保存接口）
+回滚：（语句加载）
+保存草稿功能：即不更新至数据库，下次加载语句时可以先看有没有缓存，再加载远程语句，有缓存可以提示用户有草稿是否加载草稿，也可以有个地方让用户查询到清单（注意语句可能会非常的长，你要评估一下用什么技术实现本地缓存）
+
+
+第一版本不提供语句执行功能，因为然后触发慢查询，和巨量查询
+
+
+查询可以配合nameson-sqlutils skills来使用:
+//searchData是我封装过一层的，是别的项目的写法，本质上就是【查询接口：/SearchData】
+searchData({
+  sql: 'SELECT * FROM PSTASKORD C LEFT JOIN ...',
+  params: {
+    'C.APS_STFG': 'APS02',
+    'C.APS_STDT__gte@date': '2025-06-01',
+    'C.APS_STDT__lte@date': '2025-06-30',
+  }
+})
+
+菜单加载：SELECT OBJECTID,ENAME,CNAME FROM PRJOBJECT WHERE MAPTYPE = 'VUE' ORDER BY OBJECTID DESC;
+909100	VUE_MES_WEIGHTSORT	称重分拣统计
+871007	VUE_CAPACITY_ANALYSIS	产能分析
+871006	VUE_TASK_SCHEDUALING	工厂排程
+871005	VUE_EMPPERCHART	员工绩效看板
+
+
+语句清单：SELECT OBJECTID,TABSEQ,DSNAME,UPDUSER,UPDDTTM FROM PRJOBJDS WHERE OBJECTID = 871002 ORDER BY TABSEQ;
+注意：OBJECTID = 871002应该动态拼接，具体使用方式参考nameson-sqlutils skills
+871002	1	批号配辅料查询-产地的查询语句	DBBS	2026-06-01 20:52:42.000
+871002	2	批号配辅料查询-后整工厂的查询语句	DBBS	2026-06-01 20:52:42.000
+871002	3	批号配辅料查询-齐套明细	DBBS	2026-06-01 20:52:42.000
+
+
+语句加载：SELECT OBJECTID,TABSEQ,DBQUERY,SORTBYCONTENT,ADDUSER,ADDDTTM,UPDDTTM,UPDUSER,UPDDTTM FROM PRJOBJDS WHERE OBJECTID = 871002 AND TABSEQ = 1;
+注意：OBJECTID = 871002 AND TABSEQ = 1应该动态拼接，具体使用方式参考nameson-sqlutils skills
+871002	1	SELECT CODE, --编号
+LNAME||' '||NVL(CNAME,ENAME) AS ORG_NAME --产地名
+FROM BSCODE WHERE BSGP='REGION-AS' AND USAGE1='ORIGIN'	ORDER BY 1	DBBS	2026-06-01 20:52:42.000	2026-06-01 20:52:42.000	DBBS	2026-06-01 20:52:42.000
+
+
+
+
