@@ -56,6 +56,8 @@ export const useEditorStore = defineStore('editor', () => {
   const hasDraft = ref(false)
 
   // ===== UI 状态 =====
+  /** 编辑器锁定：默认锁定（只读），解锁后方可编辑 */
+  const isLocked = ref(true)
   /** 专注模式：折叠左侧菜单树 + 中列语句清单 */
   const isFocusMode = ref(false)
   /** Diff 面板是否打开 */
@@ -135,6 +137,10 @@ export const useEditorStore = defineStore('editor', () => {
       currentSortby.value !== originalSortby.value
   }
 
+  function toggleLock() {
+    isLocked.value = !isLocked.value
+  }
+
   function toggleFocusMode() {
     isFocusMode.value = !isFocusMode.value
   }
@@ -160,6 +166,7 @@ export const useEditorStore = defineStore('editor', () => {
     statementDetail,
     isModified,
     hasDraft,
+    isLocked,
     isFocusMode,
     diffVisible,
     draftDrawerVisible,
@@ -178,6 +185,7 @@ export const useEditorStore = defineStore('editor', () => {
     setDetail,
     clearEditor,
     checkModified,
+    toggleLock,
     toggleFocusMode,
     toggleDiff,
     toggleDraftDrawer,

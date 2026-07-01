@@ -12,13 +12,14 @@
  * 7. [草稿] — 保存/管理草稿
  * 8. [Diff] — 对比变更
  * 9. [专注模式] — 折叠左侧面板
+ * 10. [锁定/解锁] — 切换编辑器只读/可编辑状态（默认锁定）
  */
 
 import { ref } from 'vue'
 import { ElMessage, ElTooltip } from 'element-plus'
 import {
   Plus, Switch, Brush, Upload, RefreshLeft,
-  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets,
+  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock,
 } from '@element-plus/icons-vue'
 import { format as sqlFormat } from 'sql-formatter'
 import { useAuthStore } from '@/stores/auth'
@@ -164,6 +165,11 @@ function handleDiff() {
 function handleFocusMode() {
   editor.toggleFocusMode()
 }
+
+function handleToggleLock() {
+  editor.toggleLock()
+  ElMessage.info(editor.isLocked ? '编辑器已锁定（只读）' : '编辑器已解锁（可编辑）')
+}
 </script>
 
 <template>
@@ -214,6 +220,15 @@ function handleFocusMode() {
 
     <!-- 视图区 -->
     <div class="toolbar-section">
+      <el-tooltip :content="editor.isLocked ? '点击解锁以编辑 SQL' : '点击锁定防止误操作'" placement="bottom">
+        <el-button
+          size="small"
+          text
+          :type="editor.isLocked ? 'warning' : 'primary'"
+          :icon="editor.isLocked ? Lock : Unlock"
+          @click="handleToggleLock"
+        >{{ editor.isLocked ? '解锁编辑' : '锁定编辑' }}</el-button>
+      </el-tooltip>
       <el-tooltip :content="editor.isFocusMode ? '退出专注模式' : '专注模式'" placement="bottom">
         <el-button
           size="small"

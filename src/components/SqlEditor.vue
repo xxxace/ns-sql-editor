@@ -10,7 +10,7 @@
  */
 
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import type * as Monaco from 'monaco-editor'
+import * as Monaco from 'monaco-editor'
 import { createEditor } from '@/utils/monaco'
 import { useEditorStore } from '@/stores/editor'
 
@@ -29,6 +29,9 @@ onMounted(async () => {
     store.setSql(value, false)
     store.checkModified()
   })
+
+  // 初始锁定状态（默认 readOnly）
+  editor.updateOptions({ readOnly: store.isLocked })
 })
 
 onBeforeUnmount(() => {
@@ -45,6 +48,11 @@ watch(
     if (!model) return
     const modelVal = editor.getValue()
     if (modelVal === val) return
+
+    // 锁定状态下 executeEdits 也会被 Monaco 拦截 → 临时解绑
+    const wasReadOnly = editor.getOption(Monaco.editor.EditorOption.readOnly) as boolean
+    if (wasReadOnly) editor.updateOptions({ readOnly: false })
+
     syncingFromStore = true
     // executeEdits 会将替换操作推入 undo 栈，Ctrl+Z 可回退
     editor.executeEdits('store-sync', [{
@@ -54,7 +62,11 @@ watch(
     }])
     // 格式化/回滚等操作后推送 undo stop，使一次 Ctrl+Z 回退整段变更
     editor.pushUndoStop()
-    nextTick(() => { syncingFromStore = false })
+    nextTick(() => {
+      syncingFromStore = false
+      // 恢复锁定（仅在原本锁定的情况下）
+      if (wasReadOnly) editor.updateOptions({ readOnly: true })
+    })
   },
 )
 
@@ -63,6 +75,11 @@ watch([() => store.isFocusMode, () => store.diffVisible], async () => {
   await nextTick()
   editor?.layout()
 })
+
+// 锁定/解锁 → 切换 Monaco readOnly
+watch(() => store.isLocked, (locked) => {
+  editor?.updateOptions({ readOnly: locked })
+}, { immediate: false })
 </script>
 
 <template>
