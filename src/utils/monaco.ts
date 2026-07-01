@@ -20,49 +20,27 @@ self.MonacoEnvironment = {
   },
 }
 
-// ---- 暗色主题 ----
-monaco.editor.defineTheme('vs-dark-custom', {
+// ---- 基于 vs-dark 微调 SQL 高亮（函数、字符串降饱和度） ----
+monaco.editor.defineTheme('ns-sql-dark', {
   base: 'vs-dark',
   inherit: true,
   rules: [
-    { token: 'comment', foreground: '6A9955', fontStyle: 'italic' },
-    { token: 'keyword', foreground: '569CD6' },
-    { token: 'string', foreground: 'CE9178' },
-    { token: 'number', foreground: 'B5CEA8' },
-    { token: 'operator', foreground: 'D4D4D4' },
-    { token: 'delimiter', foreground: 'D4D4D4' },
-    { token: 'identifier', foreground: '9CDCFE' },
-    { token: 'type', foreground: '4EC9B0' },
-    { token: 'function', foreground: 'DCDCAA' },
+    { token: 'function', foreground: 'B8B080' },
+    { token: 'predefined', foreground: 'ECD75B' },
+    { token: 'predefined.sql', foreground: 'ECD75B' },
+    { token: 'string', foreground: 'CE743D' },
+    { token: 'string.sql', foreground: 'CE743D' },
+    { token: 'string.escape', foreground: 'CE743D' },
+    { token: 'operator.sql', foreground: '569CD6' },
   ],
-  colors: {
-    'editor.background': '#141418',
-    'editor.foreground': '#D4D4DC',
-    'editor.lineHighlightBackground': '#23232A',
-    'editor.selectionBackground': '#264F78',
-    'editor.inactiveSelectionBackground': '#3A3D41',
-    'editorCursor.foreground': '#4A9EFF',
-    'editorLineNumber.foreground': '#4A4A5A',
-    'editorLineNumber.activeForeground': '#8B8B9E',
-    'editorIndentGuide.background': '#2A2A35',
-    'editorBracketMatch.background': '#3A3D41',
-    'editorBracketMatch.border': '#4A9EFF',
-    'editorGutter.background': '#141418',
-    'editorWidget.background': '#1C1C22',
-    'editorWidget.border': '#2A2A35',
-    'editorSuggestWidget.background': '#1C1C22',
-    'editorSuggestWidget.border': '#2A2A35',
-    'editorSuggestWidget.selectedBackground': '#23232A',
-    'diffEditor.insertedTextBackground': '#1a3a2a',
-    'diffEditor.removedTextBackground': '#3a1a2a',
-  },
+  colors: {},
 })
 
 // ---- 工厂函数 ----
 
 const editorDefaults: monaco.editor.IStandaloneEditorConstructionOptions = {
   language: 'sql',
-  theme: 'vs-dark-custom',
+  theme: 'ns-sql-dark',
   fontSize: 13,
   fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
   lineNumbers: 'on',
@@ -121,7 +99,7 @@ export function createDiffEditor(
   modified: string,
 ): monaco.editor.IStandaloneDiffEditor {
   const diff = monaco.editor.createDiffEditor(container, {
-    theme: 'vs-dark-custom',
+    theme: 'ns-sql-dark',
     fontSize: 13,
     fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
     minimap: { enabled: false },

@@ -24,7 +24,7 @@ function initDiff() {
   const modified = monaco.editor.createModel(editor.currentSql || '-- 当前修改', 'sql')
 
   diffEditor = monaco.editor.createDiffEditor(containerRef.value, {
-    theme: 'vs-dark-custom',
+    theme: 'ns-sql-dark',
     fontSize: 13,
     fontFamily: "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Consolas', monospace",
     minimap: { enabled: false },

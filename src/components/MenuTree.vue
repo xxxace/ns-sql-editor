@@ -3,10 +3,11 @@
  * MenuTree — 左侧菜单树
  *
  * 加载菜单：SELECT OBJECTID,ENAME,CNAME FROM PRJOBJECT WHERE MAPTYPE='VUE' ORDER BY OBJECTID DESC
+ * 支持本地 CNAME/ENAME 模糊过滤
  */
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { RefreshRight, Fold } from '@element-plus/icons-vue'
+import { RefreshRight, Search } from '@element-plus/icons-vue'
 import { searchData } from '@/api/nameson'
 import { useAuthStore } from '@/stores/auth'
 import { useEditorStore, type MenuNode } from '@/stores/editor'
@@ -15,6 +16,18 @@ const auth = useAuthStore()
 const editor = useEditorStore()
 
 const loading = ref(false)
+const filterKeyword = ref('')
+
+/** 本地模糊过滤：匹配 CNAME 或 ENAME */
+const filteredNodes = computed(() => {
+  const kw = filterKeyword.value.trim().toLowerCase()
+  if (!kw) return editor.menuNodes
+  return editor.menuNodes.filter(
+    (n) =>
+      n.cname.toLowerCase().includes(kw) ||
+      n.ename.toLowerCase().includes(kw),
+  )
+})
 
 const MENU_SQL = "SELECT OBJECTID,ENAME,CNAME FROM PRJOBJECT WHERE MAPTYPE = 'VUE' ORDER BY OBJECTID DESC"
 
@@ -69,12 +82,21 @@ watch(() => auth.isLoggedIn, (val) => {
 <template>
   <div class="menu-tree flex-col">
     <div class="panel-header">
-      <span>菜单</span>
+      <span>页面</span>
       <el-button text size="small" :icon="RefreshRight" :loading="loading" @click="loadMenu" />
+    </div>
+    <div class="filter-box" v-if="editor.menuNodes.length > 0">
+      <el-input
+        v-model="filterKeyword"
+        size="small"
+        placeholder="搜索 CNAME / ENAME"
+        clearable
+        :prefix-icon="Search"
+      />
     </div>
     <div class="panel-body">
       <div
-        v-for="node in editor.menuNodes"
+        v-for="node in filteredNodes"
         :key="node.objectId"
         class="menu-item"
         :class="{ active: editor.selectedMenu?.objectId === node.objectId }"
@@ -86,13 +108,16 @@ watch(() => auth.isLoggedIn, (val) => {
       <div v-if="editor.menuNodes.length === 0 && !loading" class="empty-text">
         点击刷新加载菜单
       </div>
+      <div v-else-if="filterKeyword && filteredNodes.length === 0 && !loading" class="empty-text">
+        无匹配菜单
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .menu-tree {
-  width: 180px;
+  width: 200px;
   min-width: 140px;
   border-right: 1px solid var(--ns-border);
   height: 100%;
@@ -134,5 +159,10 @@ watch(() => auth.isLoggedIn, (val) => {
   font-size: 12px;
   color: var(--ns-text-muted);
   text-align: center;
+}
+
+.filter-box {
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--ns-border);
 }
 </style>

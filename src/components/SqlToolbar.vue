@@ -206,7 +206,7 @@ function handleFocusMode() {
         </template>
       </el-dropdown>
       <el-tooltip content="对比变更" placement="bottom">
-        <el-button size="small" text :icon="View" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleDiff">Diff</el-button>
+        <el-button size="small" text :icon="View" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleDiff">变更对比</el-button>
       </el-tooltip>
     </div>
 

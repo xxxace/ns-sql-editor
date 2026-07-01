@@ -4,93 +4,118 @@
  *
  * 加载：SELECT OBJECTID,TABSEQ,DSNAME,UPDUSER,UPDDTTM FROM PRJOBJDS WHERE OBJECTID=... ORDER BY TABSEQ
  */
-import { ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Tickets, RefreshRight } from '@element-plus/icons-vue'
-import { searchData } from '@/api/nameson'
-import { draftKey, getDraft } from '@/utils/db'
+import { ref, watch } from "vue";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { Tickets, RefreshRight } from "@element-plus/icons-vue";
+import { searchData } from "@/api/nameson";
+import { draftKey, getDraft } from "@/utils/db";
 // @ts-ignore
-import { generateWhere } from '@nameson/sqlutils'
-import { useAuthStore } from '@/stores/auth'
-import { useEditorStore, type StatementItem } from '@/stores/editor'
+import { generateWhere } from "@nameson/sqlutils";
+import { useAuthStore } from "@/stores/auth";
+import { useEditorStore, type StatementItem } from "@/stores/editor";
 
-const auth = useAuthStore()
-const editor = useEditorStore()
+const auth = useAuthStore();
+const editor = useEditorStore();
 
-const loading = ref(false)
+const loading = ref(false);
 
-const LIST_SQL_PREFIX = 'SELECT OBJECTID,TABSEQ,DSNAME,UPDUSER,UPDDTTM FROM PRJOBJDS'
+const LIST_SQL_PREFIX =
+  "SELECT OBJECTID,TABSEQ,DSNAME,UPDUSER,UPDDTTM FROM PRJOBJDS";
 
 async function loadStatements(objectId: string) {
-  if (!objectId || !auth.isLoggedIn) return
-  loading.value = true
+  if (!objectId || !auth.isLoggedIn) return;
+  loading.value = true;
   try {
-    const where = generateWhere({ OBJECTID: objectId })
-    const res = await searchData(auth.serverUrl, LIST_SQL_PREFIX, where, 'ORDER BY TABSEQ')
-    if (res.statusCode === '1' && Array.isArray(res.data)) {
-      const items: StatementItem[] = res.data.map((row: Record<string, unknown>) => ({
-        objectId: String(row.OBJECTID ?? ''),
-        tabseq: Number(row.TABSEQ ?? 0),
-        dsname: String(row.DSNAME ?? ''),
-        updUser: String(row.UPDUSER ?? ''),
-        updDttm: String(row.UPDDTTM ?? ''),
-      }))
-      editor.setStatements(items)
+    const where = generateWhere({ OBJECTID: objectId });
+    const res = await searchData(
+      auth.serverUrl,
+      LIST_SQL_PREFIX,
+      where,
+      "ORDER BY TABSEQ",
+    );
+    if (res.statusCode === "1" && Array.isArray(res.data)) {
+      const items: StatementItem[] = res.data.map(
+        (row: Record<string, unknown>) => ({
+          objectId: String(row.OBJECTID ?? ""),
+          tabseq: Number(row.TABSEQ ?? 0),
+          dsname: String(row.DSNAME ?? ""),
+          updUser: String(row.UPDUSER ?? ""),
+          updDttm: String(row.UPDDTTM ?? ""),
+        }),
+      );
+      editor.setStatements(items);
       // 检查每条是否有草稿
-      checkDrafts(items)
+      checkDrafts(items);
     } else {
-      ElMessage.error(res.message || '加载语句清单失败')
+      ElMessage.error(res.message || "加载语句清单失败");
     }
   } catch (e: unknown) {
-    ElMessage.error('加载语句清单网络错误')
+    ElMessage.error("加载语句清单网络错误");
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 async function checkDrafts(items: StatementItem[]) {
   for (const item of items) {
-    const key = draftKey(auth.currentName, item.objectId, item.tabseq)
-    const draft = await getDraft(key)
+    const key = draftKey(auth.currentName, item.objectId, item.tabseq);
+    const draft = await getDraft(key);
     if (draft) {
-      (item as any)._hasDraft = true
+      (item as any)._hasDraft = true;
     }
   }
 }
 
 async function handleSelect(item: StatementItem & { _hasDraft?: string }) {
   // loading 中禁止切换
-  if (editor.isLoadingSql) return
+  if (editor.isLoadingSql) return;
   // 有未保存修改时提醒用户
   if (editor.isModified && editor.selectedStatement?.tabseq !== item.tabseq) {
     try {
       await ElMessageBox.confirm(
-        '当前语句有未保存的修改，切换将丢失这些变更。确定切换吗？',
-        '未保存的修改',
-        { confirmButtonText: '放弃并切换', cancelButtonText: '取消', type: 'warning' },
-      )
+        "当前语句有未保存的修改，切换将丢失这些变更。确定切换吗？",
+        "未保存的修改",
+        {
+          confirmButtonText: "放弃并切换",
+          cancelButtonText: "取消",
+          type: "warning",
+        },
+      );
     } catch {
-      return
+      return;
     }
   }
-  editor.selectStatement(item)
+  editor.selectStatement(item);
 }
 
 // 菜单切换时加载清单
-watch(() => editor.currentObjectId, (id) => {
-  if (id) loadStatements(id)
-})
+watch(
+  () => editor.currentObjectId,
+  (id) => {
+    if (id) loadStatements(id);
+  },
+);
 </script>
 
 <template>
   <div class="statement-list flex-col">
     <div class="panel-header">
       <span>语句清单</span>
-      <el-button text size="small" :icon="RefreshRight" :loading="loading" @click="editor.currentObjectId && loadStatements(editor.currentObjectId)" />
+      <el-button
+        text
+        size="small"
+        :icon="RefreshRight"
+        :loading="loading"
+        @click="
+          editor.currentObjectId && loadStatements(editor.currentObjectId)
+        "
+      />
     </div>
     <div class="panel-body">
       <div
-        v-for="item in (editor.statements as (StatementItem & { _hasDraft?: string })[])"
+        v-for="item in editor.statements as (StatementItem & {
+          _hasDraft?: string;
+        })[]"
         :key="item.tabseq"
         class="statement-item"
         :class="{ active: editor.selectedStatement?.tabseq === item.tabseq }"
@@ -101,12 +126,21 @@ watch(() => editor.currentObjectId, (id) => {
           <div class="statement-name">{{ item.dsname }}</div>
           <div class="statement-meta">
             {{ item.updUser }} ·
-            <el-tooltip :content="item.updDttm" placement="top" :show-after="400">
-              <span>{{ item.updDttm?.substring(0, 10) }}</span>
+            <el-tooltip
+              :content="item.updDttm"
+              placement="top"
+              :show-after="400"
+            >
+              <span>{{ item.updDttm?.substring(0, 16) }}</span>
             </el-tooltip>
           </div>
         </div>
-        <el-badge v-if="item._hasDraft" :value="''" :is-dot="true" class="draft-badge" />
+        <el-badge
+          v-if="item._hasDraft"
+          :value="''"
+          :is-dot="true"
+          class="draft-badge"
+        />
       </div>
       <div v-if="editor.statements.length === 0 && !loading" class="empty-text">
         请先选择菜单项
@@ -127,7 +161,7 @@ watch(() => editor.currentObjectId, (id) => {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 7px;
   cursor: pointer;
   transition: background 0.1s;
   border-left: 2px solid transparent;

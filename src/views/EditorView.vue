@@ -59,7 +59,7 @@ onMounted(() => {
 })
 
 // ---- 面板 resize（菜单 ↔ 语句 ↔ 编辑区） ----
-const menuWidth = ref(180)
+const menuWidth = ref(220)
 const stmtWidth = ref(220)
 const resizing = ref(false)
 let resizeTarget: 'menu' | 'stmt' | null = null
