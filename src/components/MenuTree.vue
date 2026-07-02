@@ -29,7 +29,7 @@ const filteredNodes = computed(() => {
 });
 
 const MENU_SQL =
-  "SELECT OBJECTID,ENAME,CNAME FROM PRJOBJECT WHERE OBJTY = 'F' AND (MAPTYPE = 'VUE' OR EXISTS(SELECT 1 FROM PRJOBJDS WHERE OBJECTID = PRJOBJECT.OBJECTID)) ORDER BY OBJECTID DESC";
+  "SELECT OBJECTID,ENAME,CNAME FROM PRJOBJECT WHERE OBJTY IN ('A','F') AND (MAPTYPE = 'VUE' OR EXISTS(SELECT 1 FROM PRJOBJDS WHERE OBJECTID = PRJOBJECT.OBJECTID)) ORDER BY OBJECTID DESC";
 
 async function loadMenu() {
   if (!auth.isLoggedIn) return;
@@ -93,8 +93,8 @@ watch(
   () => auth.currentName,
   (newName, oldName) => {
     if (oldName && newName !== oldName) {
-      editor.selectMenu(null)
-      loadMenu()
+      editor.selectMenu(null);
+      loadMenu();
     }
   },
 );
