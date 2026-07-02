@@ -87,6 +87,17 @@ watch(
   },
   { immediate: true },
 );
+
+// 切换会话时重新加载菜单
+watch(
+  () => auth.currentName,
+  (newName, oldName) => {
+    if (oldName && newName !== oldName) {
+      editor.selectMenu(null)
+      loadMenu()
+    }
+  },
+);
 </script>
 
 <template>

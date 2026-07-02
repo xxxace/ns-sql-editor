@@ -23,9 +23,12 @@ import SqlToolbar from '@/components/SqlToolbar.vue'
 import SortByEditor from '@/components/SortByEditor.vue'
 import DiffPanel from '@/components/DiffPanel.vue'
 import DraftDrawer from '@/components/DraftDrawer.vue'
+import LinkageDialog from '@/components/linkage/LinkageDialog.vue'
+import { useLinkageStore } from '@/stores/linkage'
 
 const auth = useAuthStore()
 const editor = useEditorStore()
+const linkage = useLinkageStore()
 
 // ---- 登录弹窗（工具栏触发） ----
 const loginDialogVisible = ref(false)
@@ -52,6 +55,15 @@ function onLoggedIn() {
 
 function onLoginDialogClose(val: boolean) {
   if (!val) loginDialogVisible.value = false
+}
+
+// Feature B: 打开联动对比弹窗
+// 先设置初始页面再打开弹窗，确保 LinkageCore 能立即加载清单
+function handleOpenLinkage() {
+  if (editor.currentObjectId) {
+    linkage.setSelectedPage(editor.currentObjectId)
+  }
+  linkage.openDialog()
 }
 
 onMounted(() => {
@@ -226,6 +238,7 @@ watch(() => editor.currentTabseq, (seq) => {
         @open-login="openLoginFromToolbar"
         @open-login-new="openLoginNewTab"
         @toggle-draft-drawer="editor.toggleDraftDrawer()"
+        @open-linkage="handleOpenLinkage"
       />
 
       <div class="editor-layout flex-row flex-1 overflow-hidden">
@@ -283,6 +296,9 @@ watch(() => editor.currentTabseq, (seq) => {
         v-if="editor.draftDrawerVisible"
         @load-draft="handleDraftLoad"
       />
+
+      <!-- Feature B: 联动对比弹窗 -->
+      <LinkageDialog />
     </template>
 
     <!-- 全局 resize 遮罩（拖拽时不触发 iframe/编辑区事件） -->
@@ -308,6 +324,8 @@ watch(() => editor.currentTabseq, (seq) => {
 }
 
 .editor-body {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   position: relative;
 }
@@ -318,7 +336,7 @@ watch(() => editor.currentTabseq, (seq) => {
 
 /* ---- resize 拖拽手柄 ---- */
 .resize-handle {
-  width: 4px;
+  width: 1px;
   cursor: col-resize;
   background: transparent;
   flex-shrink: 0;

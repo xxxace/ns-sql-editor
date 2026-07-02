@@ -11,6 +11,9 @@ export interface MenuNode {
   objectId: string
   ename: string
   cname: string
+  label?: string
+  hasChild?: boolean
+  children?: MenuNode[]
 }
 
 export interface StatementItem {

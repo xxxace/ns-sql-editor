@@ -150,12 +150,17 @@ function handleClose() {
             v-for="acc in auth.accounts"
             :key="acc.name"
             class="account-item"
-            :class="{ 'is-connecting': connectingAccount === acc.name, 'is-disabled': connectingAccount !== null && connectingAccount !== acc.name }"
+            :class="{
+              'is-connecting': connectingAccount === acc.name,
+              'is-disabled': connectingAccount !== null && connectingAccount !== acc.name,
+              'is-current': acc.name === auth.currentName,
+            }"
             @click="connectingAccount === null && handleSelectAccount(acc)"
           >
             <div class="account-info">
               <div class="account-name">
                 {{ acc.name }}
+                <el-tag v-if="acc.name === auth.currentName" size="small" type="success" class="current-tag">当前</el-tag>
                 <el-icon v-if="connectingAccount === acc.name" class="is-loading" size="14">
                   <Loading />
                 </el-icon>
@@ -306,6 +311,18 @@ function handleClose() {
 
 .account-item.is-disabled:hover {
   background: transparent;
+}
+
+.account-item.is-current {
+  background: rgba(16, 185, 129, 0.08);
+  border-left: 2px solid var(--el-color-success);
+  padding-left: 10px;
+}
+
+.current-tag {
+  margin-left: 6px;
+  vertical-align: middle;
+  font-size: 10px;
 }
 
 .account-name .is-loading {

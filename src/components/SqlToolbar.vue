@@ -19,7 +19,7 @@ import { ref } from 'vue'
 import { ElMessage, ElMessageBox, ElTooltip } from 'element-plus'
 import {
   Plus, Switch, Brush, Upload, RefreshLeft,
-  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock,
+  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock, Link,
 } from '@element-plus/icons-vue'
 import { format as sqlFormat } from 'sql-formatter'
 import { useAuthStore } from '@/stores/auth'
@@ -35,6 +35,7 @@ const emit = defineEmits<{
   'format': []
   'save-draft': []
   'toggle-draft-drawer': []
+  'open-linkage': []
 }>()
 
 const auth = useAuthStore()
@@ -183,6 +184,10 @@ function handleToggleLock() {
   editor.toggleLock()
   ElMessage.info(editor.isLocked ? '编辑器已锁定（只读）' : '编辑器已解锁（可编辑）')
 }
+
+function handleLinkage() {
+  emit('open-linkage')
+}
 </script>
 
 <template>
@@ -226,6 +231,15 @@ function handleToggleLock() {
       </el-dropdown>
       <el-tooltip content="对比变更" placement="bottom">
         <el-button size="small" text :icon="View" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleDiff">变更对比</el-button>
+      </el-tooltip>
+    </div>
+
+    <div class="toolbar-divider" />
+
+    <!-- 联动区 -->
+    <div class="toolbar-section">
+      <el-tooltip content="对比两个服务间的语句差异，支持同步和更新" placement="bottom">
+        <el-button size="small" text :icon="Link" @click="handleLinkage">跨服务对比</el-button>
       </el-tooltip>
     </div>
 

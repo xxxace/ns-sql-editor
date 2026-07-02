@@ -93,6 +93,63 @@ export async function searchData(
 }
 
 /**
+ * 查询数据 — 带自定义认证参数（Feature B 目标会话查询）
+ *
+ * 不走 injectAuth()，由调用方显式传入 user/sessionId，
+ * 用于查询目标会话的数据而不切换当前 authStore 状态。
+ */
+export async function searchDataWithAuth(
+  serverUrl: string,
+  sql: string,
+  where: string,
+  sortby: string,
+  user: string,
+  sessionId: number | string,
+): Promise<ApiResponse<Record<string, unknown>[]>> {
+  const url = `${serverUrl}/SearchData`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: buildForm({
+      p_Dbquery: sql,
+      p_Where: where,
+      p_sortby: sortby,
+      p_user: user,
+      p_sessionID: String(sessionId),
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: SearchData (with auth)`)
+  }
+  return res.json()
+}
+
+/**
+ * 保存数据（带自定义认证参数，Feature B 专用）
+ */
+export async function saveDataWithAuth(
+  serverUrl: string,
+  dataModel: ColdataModel[],
+  user: string,
+  sessionId: number | string,
+): Promise<ApiResponse> {
+  const url = `${serverUrl}/SaveDatas`
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: buildForm({
+      p_DataModel: JSON.stringify(dataModel),
+      p_user: user,
+      p_sessionID: String(sessionId),
+    }),
+  })
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}: SaveDatas (with auth)`)
+  }
+  return res.json()
+}
+
+/**
  * 保存数据 — 自动注入 p_user / p_sessionID
  */
 export async function saveData(

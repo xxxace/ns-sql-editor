@@ -116,6 +116,35 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn.value = false
   }
 
+  /**
+   * 静默登录 — Feature B 目标会话刷新
+   *
+   * 用目标账号凭据重新登录，返回新 sessionId。
+   * **不更新 authStore 状态**（不切换当前主会话）。
+   *
+   * @returns { sessionId, sessionErr } — sessionErr 非空表示登录失败
+   */
+  async function silentLogin(name: string): Promise<{ sessionId: number | null; sessionErr?: string }> {
+    const account = accounts.value.find((a) => a.name === name)
+    if (!account) {
+      return { sessionId: null, sessionErr: `未找到账号: ${name}` }
+    }
+    try {
+      const result = await apiLogin(account.serverUrl, account.user, account.password)
+      if (result.statusCode !== '1') {
+        return { sessionId: null, sessionErr: result.message || '静默登录失败' }
+      }
+      const sid = result.data
+      // 更新 IndexedDB 中该账号的 sessionId，不影响 authStore 状态
+      await saveAccount({ ...account, sessionId: sid, lastLoginAt: Date.now(), updatedAt: Date.now() })
+      await loadAccounts()
+      return { sessionId: sid }
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '网络错误'
+      return { sessionId: null, sessionErr: `静默登录失败: ${msg}` }
+    }
+  }
+
   /** 导出账号清单 */
   function exportAccounts(): string {
     const data = accounts.value.map(({ name, serverUrl: u, user, lastLoginAt: l }) => ({
@@ -143,6 +172,7 @@ export const useAuthStore = defineStore('auth', () => {
     doLogin,
     loginFromAccount,
     reconnect,
+    silentLogin,
     removeAccount,
     logout,
     exportAccounts,

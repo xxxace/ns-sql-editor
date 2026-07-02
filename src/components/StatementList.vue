@@ -6,18 +6,20 @@
  */
 import { ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { RefreshRight } from "@element-plus/icons-vue";
+import { RefreshRight, Plus } from "@element-plus/icons-vue";
 import { searchData } from "@/api/nameson";
 import { draftKey, getDraft } from "@/utils/db";
 // @ts-ignore
 import { generateWhere } from "@nameson/sqlutils";
 import { useAuthStore } from "@/stores/auth";
 import { useEditorStore, type StatementItem } from "@/stores/editor";
+import NewStatementDialog from "@/components/NewStatementDialog.vue";
 
 const auth = useAuthStore();
 const editor = useEditorStore();
 
 const loading = ref(false);
+const newStmtDialogRef = ref<InstanceType<typeof NewStatementDialog>>();
 
 const LIST_SQL_PREFIX =
   "SELECT OBJECTID,TABSEQ,DSNAME,UPDUSER,UPDDTTM FROM PRJOBJDS";
@@ -88,11 +90,41 @@ async function handleSelect(item: StatementItem & { _hasDraft?: string }) {
   editor.selectStatement(item);
 }
 
+// Feature A: 打开新增语句弹窗
+function handleNewStatement() {
+  newStmtDialogRef.value?.open();
+}
+
+// Feature A: 新增语句创建成功后刷新 + 自动切换
+async function onStatementCreated(tabseq: number) {
+  // 刷新清单
+  if (editor.currentObjectId) {
+    await loadStatements(editor.currentObjectId)
+  }
+  // 自动切换到新语句（editor.locked 自动解锁）
+  const newStmt = editor.statements.find((s) => s.tabseq === tabseq)
+  if (newStmt) {
+    editor.selectStatement(newStmt)
+    editor.isLocked = false // 新空语句需立即编写
+    ElMessage.success(`已创建新语句 ${tabseq}，可以在编辑器中编写 SQL 了`)
+  }
+}
+
 // 菜单切换时加载清单
 watch(
   () => editor.currentObjectId,
   (id) => {
     if (id) loadStatements(id);
+  },
+);
+
+// 切换会话时清空当前清单（等待新菜单选中后自动重新加载）
+watch(
+  () => auth.currentName,
+  (newName, oldName) => {
+    if (oldName && newName !== oldName) {
+      editor.setStatements([])
+    }
   },
 );
 </script>
@@ -101,15 +133,25 @@ watch(
   <div class="statement-list flex-col">
     <div class="panel-header">
       <span>语句清单</span>
-      <el-button
-        text
-        size="small"
-        :icon="RefreshRight"
-        :loading="loading"
-        @click="
-          editor.currentObjectId && loadStatements(editor.currentObjectId)
-        "
-      />
+      <div class="panel-header-actions">
+        <el-button
+          text
+          size="small"
+          :icon="Plus"
+          :disabled="!editor.currentObjectId"
+          title="新增语句"
+          @click="handleNewStatement"
+        />
+        <el-button
+          text
+          size="small"
+          :icon="RefreshRight"
+          :loading="loading"
+          @click="
+            editor.currentObjectId && loadStatements(editor.currentObjectId)
+          "
+        />
+      </div>
     </div>
     <div class="panel-body">
       <div
@@ -146,6 +188,12 @@ watch(
         请先选择菜单项
       </div>
     </div>
+
+    <!-- Feature A: 新增语句弹窗 -->
+    <NewStatementDialog
+      ref="newStmtDialogRef"
+      @created="onStatementCreated"
+    />
   </div>
 </template>
 
@@ -216,5 +264,11 @@ watch(
   font-size: 12px;
   color: var(--ns-text-muted);
   text-align: center;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 </style>
