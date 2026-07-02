@@ -5,44 +5,45 @@
  * 默认带入主界面当前选中的页面，用户可手动下拉切换到其他页面。
  * 切换后自动触发目标会话数据重新加载。
  */
-import { ref, computed, watch } from 'vue'
-import { useEditorStore } from '@/stores/editor'
-import { useLinkageStore } from '@/stores/linkage'
+import { ref, computed, watch } from "vue";
+import { useEditorStore } from "@/stores/editor";
+import { useLinkageStore } from "@/stores/linkage";
 
-const editor = useEditorStore()
-const linkage = useLinkageStore()
+const editor = useEditorStore();
+const linkage = useLinkageStore();
 
-const selectedValue = ref<string>('')
+const selectedValue = ref<string>("");
 
 // 菜单选项：扁平化所有子菜单页面（root.children 才是具体页面）
 const pageOptions = computed(() => {
-  const pages: { value: string; label: string }[] = []
-  editor.menuNodes.forEach((root) => {
-    const children = root.children || []
-    children.forEach((child) => {
-      pages.push({
-        value: child.objectId,
-        label: `${child.cname || child.label || child.ename} (${child.ename})`,
-      })
-    })
-  })
-  return pages
-})
+  const pages: { value: string; label: string }[] = [];
+
+  editor.menuNodes.forEach((page) => {
+    pages.push({
+      value: page.objectId,
+      label: `${page.cname || page.label || page.ename} (${page.ename})`,
+    });
+  });
+  return pages;
+});
 
 // 弹窗打开时默认选中当前页
 watch(
   () => linkage.dialogVisible,
   (open) => {
     if (open) {
-      const currentId = editor.currentObjectId
-      selectedValue.value = currentId
-      linkage.setSelectedPage(currentId)
+      const currentId = editor.currentObjectId;
+      selectedValue.value = currentId;
+      linkage.setSelectedPage(currentId);
     }
   },
-)
+  {
+    immediate: true,
+  },
+);
 
 function handleChange(objectId: string) {
-  linkage.setSelectedPage(objectId || null)
+  linkage.setSelectedPage(objectId || null);
 }
 </script>
 
