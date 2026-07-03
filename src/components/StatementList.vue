@@ -99,14 +99,14 @@ function handleNewStatement() {
 async function onStatementCreated(tabseq: number) {
   // 刷新清单
   if (editor.currentObjectId) {
-    await loadStatements(editor.currentObjectId)
+    await loadStatements(editor.currentObjectId);
   }
   // 自动切换到新语句（editor.locked 自动解锁）
-  const newStmt = editor.statements.find((s) => s.tabseq === tabseq)
+  const newStmt = editor.statements.find((s) => s.tabseq === tabseq);
   if (newStmt) {
-    editor.selectStatement(newStmt)
-    editor.isLocked = false // 新空语句需立即编写
-    ElMessage.success(`已创建新语句 ${tabseq}，可以在编辑器中编写 SQL 了`)
+    editor.selectStatement(newStmt);
+    editor.isLocked = false; // 新空语句需立即编写
+    ElMessage.success(`已创建新语句 ${tabseq}，可以在编辑器中编写 SQL 了`);
   }
 }
 
@@ -123,7 +123,7 @@ watch(
   () => auth.currentName,
   (newName, oldName) => {
     if (oldName && newName !== oldName) {
-      editor.setStatements([])
+      editor.setStatements([]);
     }
   },
 );
@@ -154,46 +154,53 @@ watch(
       </div>
     </div>
     <div class="panel-body">
-      <div
+      <el-popover
         v-for="item in editor.statements as (StatementItem & {
           _hasDraft?: string;
         })[]"
+        width="230"
+        placement="right-start"
         :key="item.tabseq"
-        class="statement-item"
-        :class="{ active: editor.selectedStatement?.tabseq === item.tabseq }"
-        @click="handleSelect(item)"
+        :title="item.dsname"
       >
-        <div class="statement-seq">{{ item.tabseq }}</div>
-        <div class="statement-info">
-          <div class="statement-name">{{ item.dsname }}</div>
-          <div class="statement-meta">
-            {{ item.updUser }} ·
-            <el-tooltip
-              :content="item.updDttm"
-              placement="top"
-              :show-after="400"
-            >
-              <span>{{ item.updDttm?.substring(0, 16) }}</span>
-            </el-tooltip>
+        <template #reference>
+          <div
+            class="statement-item"
+            :class="{
+              active: editor.selectedStatement?.tabseq === item.tabseq,
+            }"
+            @click="handleSelect(item)"
+          >
+            <div class="statement-seq">{{ item.tabseq }}</div>
+            <div class="statement-info">
+              <div class="statement-name">{{ item.dsname }}</div>
+              <div class="statement-meta">
+                {{ item.updUser }} · {{ item.updDttm?.substring(0, 16) }}
+              </div>
+            </div>
+            <el-badge
+              v-if="item._hasDraft"
+              :value="''"
+              :is-dot="true"
+              class="draft-badge"
+            />
           </div>
+        </template>
+
+        <div>
+          <div>OBJECTID: {{ item.objectId }}</div>
+          <div>TABSEQ: {{ item.tabseq }}</div>
+          <div>UPDUSER: {{ item.updUser }}</div>
+          <div>UPDDTTM: {{ item.updDttm }}</div>
         </div>
-        <el-badge
-          v-if="item._hasDraft"
-          :value="''"
-          :is-dot="true"
-          class="draft-badge"
-        />
-      </div>
+      </el-popover>
       <div v-if="editor.statements.length === 0 && !loading" class="empty-text">
         请先选择菜单项
       </div>
     </div>
 
     <!-- Feature A: 新增语句弹窗 -->
-    <NewStatementDialog
-      ref="newStmtDialogRef"
-      @created="onStatementCreated"
-    />
+    <NewStatementDialog ref="newStmtDialogRef" @created="onStatementCreated" />
   </div>
 </template>
 
