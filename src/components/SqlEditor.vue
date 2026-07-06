@@ -35,9 +35,16 @@ let toggleLockDisposable: Monaco.IDisposable | undefined;
 let formatActionDisposable: Monaco.IDisposable | undefined;
 let isFormatting = false;
 
+/**
+ * 格式化 SQL — 直接操作 editor（executeEdits = 可撤销），不走 store → watch 路径。
+ *
+ * store → watch 路径用 setValue 会清空 undo 栈（加载/回滚应该是"最初数据"），
+ * 但格式化应该是可撤销的，所以这里绕过 watch 直接写 editor，再同步 store。
+ */
 function runFormat() {
   if (isFormatting || store.isLoadingSql || store.isLocked) return;
-  if (!store.currentSql.trim()) {
+  const sql = editor?.getValue() ?? "";
+  if (!sql.trim()) {
     ElMessage.warning("没有可格式化的内容");
     return;
   }
@@ -46,7 +53,7 @@ function runFormat() {
     const dialects: Array<"plsql" | "sql"> = ["plsql", "sql"];
     for (const lang of dialects) {
       try {
-        const formatted = sqlFormat(store.currentSql, {
+        const formatted = sqlFormat(sql, {
           language: lang,
           tabWidth: 2,
           useTabs: false,
@@ -55,8 +62,26 @@ function runFormat() {
           denseOperators: false,
           newlineBeforeSemicolon: false,
         });
+
+        const model = editor!.getModel();
+        if (!model) return;
+
+        // 直接写 editor（进入 undo 栈 → 用户可用 Ctrl+Z 撤销格式化）
+        syncingFromStore = true;
+        editor!.executeEdits("format", [
+          {
+            range: model.getFullModelRange(),
+            text: formatted,
+            forceMoveMarkers: true,
+          },
+        ]);
+        editor!.pushUndoStop();
+
+        // 同步 store → watch 因 modelVal === formatted 直接 return，不触发 setValue
         store.setSql(formatted, false);
         store.checkModified();
+        syncingFromStore = false;
+
         ElMessage.success(
           `格式化完成 (${lang === "plsql" ? "Oracle PL/SQL" : "通用 SQL"})`,
         );
@@ -68,6 +93,7 @@ function runFormat() {
     ElMessage.warning("格式化失败，SQL 包含无法识别的语法，请检查后重试");
   } finally {
     isFormatting = false;
+    syncingFromStore = false;
   }
 }
 
@@ -166,36 +192,27 @@ onBeforeUnmount(() => {
   editor = null;
 });
 
-// Store → Monaco（使用 executeEdits 保留 undo 栈，而非 setValue 清空历史）
+// Store → Monaco（setValue 清空 undo 栈 — 每次加载/回滚都是"最初数据"）
+//
+// 格式化不走这里（见 runFormat），因为格式化需要可撤销。
+// executeEdits 的问题：每次加载新语句都会推入 undo 栈，导致 Ctrl+Z 能回到上一个语句。
 watch(
   () => store.currentSql,
   (val) => {
     if (!editor) return;
-    const model = editor.getModel();
-    if (!model) return;
+    if (syncingFromStore) return;
     const modelVal = editor.getValue();
     if (modelVal === val) return;
 
-    // 锁定状态下 executeEdits 也会被 Monaco 拦截 → 临时解绑
     const wasReadOnly = editor.getOption(
       Monaco.editor.EditorOption.readOnly,
     ) as boolean;
     if (wasReadOnly) editor.updateOptions({ readOnly: false });
 
     syncingFromStore = true;
-    // executeEdits 会将替换操作推入 undo 栈，Ctrl+Z 可回退
-    editor.executeEdits("store-sync", [
-      {
-        range: model.getFullModelRange(),
-        text: val ?? "",
-        forceMoveMarkers: true,
-      },
-    ]);
-    // 格式化/回滚等操作后推送 undo stop，使一次 Ctrl+Z 回退整段变更
-    editor.pushUndoStop();
+    editor.setValue(val ?? "");
     nextTick(() => {
       syncingFromStore = false;
-      // 恢复锁定：使用当前实时状态而非快照，防止 race condition
       if (editor)
         editor.updateOptions({
           readOnly: store.isLocked || store.isLoadingSql,
