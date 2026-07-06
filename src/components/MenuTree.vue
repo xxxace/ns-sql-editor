@@ -109,6 +109,7 @@ watch(
         size="small"
         :icon="RefreshRight"
         :loading="loading"
+        :disabled="editor.isLoadingSql"
         @click="loadMenu"
       />
     </div>

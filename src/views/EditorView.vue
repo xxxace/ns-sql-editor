@@ -216,6 +216,26 @@ watch(() => editor.currentTabseq, (seq) => {
     editor.skipNextLoad = false
   }
 })
+
+// ---- 右键菜单「刷新语句」 ----
+async function handleReloadStatement() {
+  if (editor.isModified) {
+    try {
+      await ElMessageBox.confirm(
+        '当前语句有未保存的修改，刷新将丢失这些变更。确定刷新吗？',
+        '未保存的修改',
+        {
+          confirmButtonText: '刷新',
+          cancelButtonText: '取消',
+          type: 'warning',
+        },
+      )
+    } catch {
+      return
+    }
+  }
+  loadStatement(true)
+}
 </script>
 
 <template>
@@ -275,13 +295,13 @@ watch(() => editor.currentTabseq, (seq) => {
         <!-- 编辑主区 -->
         <div class="editor-main flex-col flex-1">
           <div class="editor-body flex-1" :class="{ collapsed: editor.diffVisible }">
-            <SqlEditor />
+            <SqlEditor @reload="handleReloadStatement" />
             <!-- loading 遮罩层 -->
             <Transition name="fade">
               <div v-if="editor.isLoadingSql" class="loading-overlay">
                 <div class="loading-spinner">
                   <div class="spinner" />
-                  <span>加载语句中...</span>
+                  <span>处理中...</span>
                 </div>
               </div>
             </Transition>

@@ -18,10 +18,9 @@
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox, ElTooltip } from 'element-plus'
 import {
-  Plus, Switch, Brush, Upload, RefreshLeft,
+  Plus, Switch, Upload, RefreshLeft,
   DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock, Link,
 } from '@element-plus/icons-vue'
-import { format as sqlFormat } from 'sql-formatter'
 import { useAuthStore } from '@/stores/auth'
 import { useEditorStore } from '@/stores/editor'
 import { saveData } from '@/api/nameson'
@@ -32,7 +31,6 @@ import { generateDataModel } from '@nameson/sqlutils'
 const emit = defineEmits<{
   'open-login': []
   'open-login-new': []
-  'format': []
   'save-draft': []
   'toggle-draft-drawer': []
   'open-linkage': []
@@ -51,35 +49,6 @@ function handleAddConnection() {
 
 function handleSwitchConnection() {
   emit('open-login')
-}
-
-function handleFormat() {
-  if (!editor.currentSql.trim()) {
-    ElMessage.warning('没有可格式化的内容')
-    return
-  }
-  // 依次尝试 plsql → sql，覆盖 Oracle 特有语法
-  const dialects: Array<'plsql' | 'sql'> = ['plsql', 'sql']
-  for (const lang of dialects) {
-    try {
-      const formatted = sqlFormat(editor.currentSql, {
-        language: lang,
-        tabWidth: 2,
-        useTabs: false,
-        keywordCase: 'upper',
-        linesBetweenQueries: 2,
-        denseOperators: false,
-        newlineBeforeSemicolon: false,
-      })
-      editor.setSql(formatted, false)
-      editor.checkModified()
-      ElMessage.success(`格式化完成 (${lang === 'plsql' ? 'Oracle PL/SQL' : '通用 SQL'})`)
-      return
-    } catch {
-      // fallback to next dialect
-    }
-  }
-  ElMessage.warning('格式化失败，SQL 包含无法识别的语法，请检查后重试')
 }
 
 async function handleSave() {
@@ -102,6 +71,7 @@ async function handleSave() {
     return
   }
   saving.value = true
+  editor.isLoadingSql = true
   try {
     const dataModel = generateDataModel({
       tableName: 'PRJOBJDS',
@@ -133,6 +103,7 @@ async function handleSave() {
     ElMessage.error('保存网络错误')
   } finally {
     saving.value = false
+    editor.isLoadingSql = false
   }
 }
 
@@ -195,10 +166,19 @@ function handleLinkage() {
     <!-- 连接区 -->
     <div class="toolbar-section">
       <el-tooltip content="添加新的服务器连接" placement="bottom">
-        <el-button size="small" text :icon="Plus" @click="handleAddConnection">添加连接</el-button>
+        <el-button size="small" text :icon="Plus" :disabled="editor.isLoadingSql" @click="handleAddConnection">添加连接</el-button>
       </el-tooltip>
       <el-tooltip :content="auth.currentConnectionInfo" placement="bottom" :show-after="300">
-        <el-button size="small" text :icon="Switch" @click="handleSwitchConnection">切换连接</el-button>
+        <el-button size="small" text :icon="Switch" :disabled="editor.isLoadingSql" @click="handleSwitchConnection">切换连接</el-button>
+      </el-tooltip>
+    </div>
+
+    <div class="toolbar-divider" />
+
+    <!-- 联动区 -->
+    <div class="toolbar-section">
+      <el-tooltip content="对比两个服务间的语句差异，支持同步和更新" placement="bottom">
+        <el-button size="small" text :icon="Link" :disabled="editor.isLoadingSql" @click="handleLinkage">跨服务对比</el-button>
       </el-tooltip>
     </div>
 
@@ -206,17 +186,8 @@ function handleLinkage() {
 
     <!-- 操作区 -->
     <div class="toolbar-section">
-      <el-tooltip content="格式化 SQL" placement="bottom">
-        <el-button size="small" text :icon="Brush" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleFormat">格式化</el-button>
-      </el-tooltip>
-      <el-tooltip content="更新到数据库" placement="bottom">
-        <el-button size="small" text :icon="Upload" :loading="saving" :disabled="!editor.isModified || editor.isLoadingSql" @click="handleSave">保存</el-button>
-      </el-tooltip>
-      <el-tooltip content="回滚到原始版本" placement="bottom">
-        <el-button size="small" text :icon="RefreshLeft" :disabled="!editor.isModified || editor.isLoadingSql" @click="handleRollback">回滚</el-button>
-      </el-tooltip>
       <el-dropdown trigger="click" @command="handleDraftCommand">
-        <el-button size="small" text :icon="DocumentCopy">
+        <el-button size="small" text :icon="DocumentCopy" :disabled="editor.isLoadingSql">
           草稿
           <el-icon class="el-icon--right"><ArrowDown /></el-icon>
         </el-button>
@@ -232,14 +203,11 @@ function handleLinkage() {
       <el-tooltip content="对比变更" placement="bottom">
         <el-button size="small" text :icon="View" :disabled="!editor.currentSql || editor.isLoadingSql" @click="handleDiff">变更对比</el-button>
       </el-tooltip>
-    </div>
-
-    <div class="toolbar-divider" />
-
-    <!-- 联动区 -->
-    <div class="toolbar-section">
-      <el-tooltip content="对比两个服务间的语句差异，支持同步和更新" placement="bottom">
-        <el-button size="small" text :icon="Link" @click="handleLinkage">跨服务对比</el-button>
+      <el-tooltip content="更新到数据库" placement="bottom">
+        <el-button size="small" text :icon="Upload" :loading="saving" :disabled="!editor.isModified || editor.isLoadingSql" @click="handleSave">保存</el-button>
+      </el-tooltip>
+      <el-tooltip content="回滚到原始版本" placement="bottom">
+        <el-button size="small" text :icon="RefreshLeft" :disabled="!editor.isModified || editor.isLoadingSql" @click="handleRollback">回滚</el-button>
       </el-tooltip>
     </div>
 
@@ -253,6 +221,7 @@ function handleLinkage() {
           text
           :type="editor.isLocked ? 'warning' : 'primary'"
           :icon="editor.isLocked ? Lock : Unlock"
+          :disabled="editor.isLoadingSql"
           @click="handleToggleLock"
         >{{ editor.isLocked ? '解锁编辑' : '锁定编辑' }}</el-button>
       </el-tooltip>
@@ -262,6 +231,7 @@ function handleLinkage() {
           text
           :type="editor.isFocusMode ? 'primary' : undefined"
           :icon="editor.isFocusMode ? Close : FullScreen"
+          :disabled="editor.isLoadingSql"
           @click="handleFocusMode"
         >{{ editor.isFocusMode ? '退出专注' : '专注' }}</el-button>
       </el-tooltip>

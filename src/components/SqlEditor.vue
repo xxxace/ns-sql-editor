@@ -9,122 +9,227 @@
  * - 卸载时销毁
  */
 
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import * as Monaco from 'monaco-editor'
-import { createEditor } from '@/utils/monaco'
-import { useEditorStore } from '@/stores/editor'
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ElMessage } from "element-plus";
+import * as Monaco from "monaco-editor";
+import { format as sqlFormat } from "sql-formatter";
+import { createEditor } from "@/utils/monaco";
+import { useEditorStore } from "@/stores/editor";
 
-const store = useEditorStore()
-const containerRef = ref<HTMLDivElement>()
+const store = useEditorStore();
+const containerRef = ref<HTMLDivElement>();
+
+const emit = defineEmits<{
+  reload: [];
+}>();
 
 // ---- 状态栏数据 ----
-const cursorLine = ref(1)
-const cursorColumn = ref(1)
-const selectedChars = ref(0)
-const indentSpaces = ref(0)
+const cursorLine = ref(1);
+const cursorColumn = ref(1);
+const selectedChars = ref(0);
+const indentSpaces = ref(0);
 
-let editor: Monaco.editor.IStandaloneCodeEditor | null = null
-let syncingFromStore = false
+let editor: Monaco.editor.IStandaloneCodeEditor | null = null;
+let syncingFromStore = false;
+let toggleLockDisposable: Monaco.IDisposable | undefined;
+let formatActionDisposable: Monaco.IDisposable | undefined;
+let isFormatting = false;
+
+function runFormat() {
+  if (isFormatting || store.isLoadingSql || store.isLocked) return;
+  if (!store.currentSql.trim()) {
+    ElMessage.warning("没有可格式化的内容");
+    return;
+  }
+  isFormatting = true;
+  try {
+    const dialects: Array<"plsql" | "sql"> = ["plsql", "sql"];
+    for (const lang of dialects) {
+      try {
+        const formatted = sqlFormat(store.currentSql, {
+          language: lang,
+          tabWidth: 2,
+          useTabs: false,
+          keywordCase: "upper",
+          linesBetweenQueries: 2,
+          denseOperators: false,
+          newlineBeforeSemicolon: false,
+        });
+        store.setSql(formatted, false);
+        store.checkModified();
+        ElMessage.success(
+          `格式化完成 (${lang === "plsql" ? "Oracle PL/SQL" : "通用 SQL"})`,
+        );
+        return;
+      } catch {
+        // fallback to next dialect
+      }
+    }
+    ElMessage.warning("格式化失败，SQL 包含无法识别的语法，请检查后重试");
+  } finally {
+    isFormatting = false;
+  }
+}
 
 function updateCursorStatus() {
-  if (!editor) return
-  const pos = editor.getPosition()
+  if (!editor) return;
+  const pos = editor.getPosition();
   if (pos) {
-    cursorLine.value = pos.lineNumber
-    cursorColumn.value = pos.column
+    cursorLine.value = pos.lineNumber;
+    cursorColumn.value = pos.column;
   }
-  const sel = editor.getSelection()
-  const model = editor.getModel()
+  const sel = editor.getSelection();
+  const model = editor.getModel();
   if (sel && model) {
     if (sel.isEmpty()) {
-      selectedChars.value = 0
+      selectedChars.value = 0;
     } else {
-      const text = model.getValueInRange(sel)
-      selectedChars.value = text.length
+      const text = model.getValueInRange(sel);
+      selectedChars.value = text.length;
     }
   }
   // 缩进：当前行前导空格
   if (model && pos) {
-    const line = model.getLineContent(pos.lineNumber)
-    const match = line.match(/^(\s*)/)
-    indentSpaces.value = match ? match[1].length : 0
+    const line = model.getLineContent(pos.lineNumber);
+    const match = line.match(/^(\s*)/);
+    indentSpaces.value = match ? match[1].length : 0;
   }
 }
 
 onMounted(async () => {
-  await nextTick()
-  if (!containerRef.value) return
+  await nextTick();
+  if (!containerRef.value) return;
 
   editor = createEditor(containerRef.value, store.currentSql, (value) => {
-    if (syncingFromStore) return
-    store.setSql(value, false)
-    store.checkModified()
-  })
+    if (syncingFromStore) return;
+    store.setSql(value, false);
+    store.checkModified();
+  });
 
   // 初始锁定状态（默认 readOnly）
-  editor.updateOptions({ readOnly: store.isLocked })
+  editor.updateOptions({ readOnly: store.isLocked });
 
   // 注册光标事件 → 状态栏
-  editor.onDidChangeCursorPosition(() => updateCursorStatus())
-  editor.onDidChangeCursorSelection(() => updateCursorStatus())
+  editor.onDidChangeCursorPosition(() => updateCursorStatus());
+  editor.onDidChangeCursorSelection(() => updateCursorStatus());
   // 初始状态
-  updateCursorStatus()
-})
+  updateCursorStatus();
+
+  // ---- 右键菜单：刷新语句 ----
+  editor.addAction({
+    id: "ns-reload-statement",
+    label: "刷新语句",
+    contextMenuGroupId: "navigation",
+    contextMenuOrder: 1,
+    run: () => {
+      if (store.isLoadingSql) return;
+      emit("reload");
+    },
+  });
+
+  // ---- 右键菜单：切换编辑锁定（动态标签） ----
+  function registerToggleLock() {
+    toggleLockDisposable?.dispose();
+    toggleLockDisposable = editor!.addAction({
+      id: "ns-toggle-lock",
+      label: store.isLocked ? "🔓 解锁编辑" : "🔒 锁定编辑",
+      contextMenuGroupId: "navigation",
+      contextMenuOrder: 2,
+      run: () => {
+        if (store.isLoadingSql) return;
+        store.isLocked = !store.isLocked;
+      },
+    });
+  }
+  registerToggleLock();
+  watch(() => store.isLocked, registerToggleLock);
+
+  // ---- 右键菜单 + 快捷键：格式化 SQL ----
+  // 快捷键 Shift+Alt+F（VS Code 风格），避免 Ctrl+Shift+F 被 Windows 中文输入法
+  // 的简繁体切换（Ctrl+Shift+F）在系统层面拦截，导致 Monaco 永远收不到该按键。
+  formatActionDisposable = editor.addAction({
+    id: "ns-format",
+    label: "格式化 SQL",
+    contextMenuGroupId: "navigation",
+    contextMenuOrder: 1.5,
+    keybindings: [
+      Monaco.KeyMod.Shift | Monaco.KeyMod.Alt | Monaco.KeyCode.KeyF,
+    ],
+    run: runFormat,
+  });
+});
 
 onBeforeUnmount(() => {
-  editor?.dispose()
-  editor = null
-})
+  toggleLockDisposable?.dispose();
+  formatActionDisposable?.dispose();
+  editor?.dispose();
+  editor = null;
+});
 
 // Store → Monaco（使用 executeEdits 保留 undo 栈，而非 setValue 清空历史）
 watch(
   () => store.currentSql,
   (val) => {
-    if (!editor) return
-    const model = editor.getModel()
-    if (!model) return
-    const modelVal = editor.getValue()
-    if (modelVal === val) return
+    if (!editor) return;
+    const model = editor.getModel();
+    if (!model) return;
+    const modelVal = editor.getValue();
+    if (modelVal === val) return;
 
     // 锁定状态下 executeEdits 也会被 Monaco 拦截 → 临时解绑
-    const wasReadOnly = editor.getOption(Monaco.editor.EditorOption.readOnly) as boolean
-    if (wasReadOnly) editor.updateOptions({ readOnly: false })
+    const wasReadOnly = editor.getOption(
+      Monaco.editor.EditorOption.readOnly,
+    ) as boolean;
+    if (wasReadOnly) editor.updateOptions({ readOnly: false });
 
-    syncingFromStore = true
+    syncingFromStore = true;
     // executeEdits 会将替换操作推入 undo 栈，Ctrl+Z 可回退
-    editor.executeEdits('store-sync', [{
-      range: model.getFullModelRange(),
-      text: val ?? '',
-      forceMoveMarkers: true,
-    }])
+    editor.executeEdits("store-sync", [
+      {
+        range: model.getFullModelRange(),
+        text: val ?? "",
+        forceMoveMarkers: true,
+      },
+    ]);
     // 格式化/回滚等操作后推送 undo stop，使一次 Ctrl+Z 回退整段变更
-    editor.pushUndoStop()
+    editor.pushUndoStop();
     nextTick(() => {
-      syncingFromStore = false
-      // 恢复锁定（仅在原本锁定的情况下）
-      if (wasReadOnly && editor) editor.updateOptions({ readOnly: true })
-    })
+      syncingFromStore = false;
+      // 恢复锁定：使用当前实时状态而非快照，防止 race condition
+      if (editor)
+        editor.updateOptions({
+          readOnly: store.isLocked || store.isLoadingSql,
+        });
+    });
   },
-)
+);
 
 // 专注模式 / Diff 面板 切换 → 重新布局 Monaco
 watch([() => store.isFocusMode, () => store.diffVisible], async () => {
-  await nextTick()
-  editor?.layout()
-})
+  await nextTick();
+  editor?.layout();
+});
 
-// 锁定/解锁 → 切换 Monaco readOnly
-watch(() => store.isLocked, (locked) => {
-  editor?.updateOptions({ readOnly: locked })
-}, { immediate: false })
+// 锁定/解锁 / 保存中 → 切换 Monaco readOnly
+watch(
+  [() => store.isLocked, () => store.isLoadingSql],
+  ([locked, loading]) => {
+    editor?.updateOptions({ readOnly: locked || loading });
+  },
+  { immediate: false },
+);
 </script>
 
 <template>
   <div class="editor-wrapper">
     <div ref="containerRef" class="monaco-host" />
     <div class="status-bar">
-      <span class="status-item">行 {{ cursorLine }}, 列 {{ cursorColumn }}</span>
-      <span v-if="selectedChars > 0" class="status-item status-selected">(已选择{{ selectedChars }})</span>
+      <span class="status-item"
+        >行 {{ cursorLine }}, 列 {{ cursorColumn }}</span
+      >
+      <span v-if="selectedChars > 0" class="status-item status-selected"
+        >(已选择{{ selectedChars }})</span
+      >
       <span class="status-item status-indent">空格: {{ indentSpaces }}</span>
     </div>
   </div>

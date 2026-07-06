@@ -138,7 +138,7 @@ watch(
           text
           size="small"
           :icon="Plus"
-          :disabled="!editor.currentObjectId"
+          :disabled="!editor.currentObjectId || editor.isLoadingSql"
           title="新增语句"
           @click="handleNewStatement"
         />
