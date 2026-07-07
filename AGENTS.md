@@ -28,14 +28,11 @@
   - 有工具依赖（如调用已有 API、执行已有脚本）→ 确认工具可用后直接调用，不做盘点。
   - 若工具不存在或状态不确定 → 升级为常规任务，走盘点流程。
 
-### 初始化指令
-- 已理解上述分级机制。后续对话中，无论用户提出什么需求，先后台评估级别，再按对应策略执行，直接出结果，不重复解释评估过程。
-
 ---
 
 ## 二、项目概览（Orientation）
 
-- **技术栈**：Vue 3（`script setup` SFC）+ TypeScript + Vite + Element Plus + Pinia + localforage（IndexedDB 持久化）+ Monaco Editor（`@nameson/sqlutils`、`sql-formatter` 等）。
+- **技术栈**：Vue 3（`script setup` SFC）+ TypeScript + Vite + Element Plus + Pinia + localforage（IndexedDB 持久化）+ Monaco Editor。
 - **常用脚本**：
   - `npm run dev` —— 启动开发服务器（Vite，注意：本地 `http://` 环境，`navigator.clipboard` 可能受限，相关功能需带 fallback）。
   - `npm run build` —— `vue-tsc -b && vite build`，**类型检查 + 构建** 是提交前的必过门槛。
@@ -53,13 +50,9 @@
 
 ## 三、开发约定（已沉淀，需延续）
 
-1. **解耦优先**：纯逻辑（序列化、解析、判定等）独立成 `utils/` 下的纯模块，store 只做"调模块 + 落库 + 刷新"的编排，UI 组件只做"捕获输入 / 展示"。避免把业务逻辑耦合进 store 或组件。
+1. **解耦优先（针对新增代码）**：新增的纯逻辑（序列化、解析、判定等）独立成 `utils/` 下的纯模块；store 只对该模块做"调模块 + 落库 + 刷新"的编排，UI 组件只做"捕获输入 / 展示"。注意：`auth.ts` 当前**仍包含登录 / 会话逻辑**（非纯模块），不要为"解耦"而强行迁移既有代码，只在新需求上贯彻此约定。
 2. **复用现有能力**：新增功能前先查 `src/utils/`、现有 store 方法与组件，优先复用而非重写。
-3. **连接管理功能**（导出复制 / 导入粘贴）：
-   - 逻辑全在 `src/utils/connectionTransfer.ts`（`serializeConnections` / `parseConnections` / `resolveImportItems`）。
-   - 落库走 `auth.importConnections`（编排），不直接在 UI 里写 DB。
-   - 导出**含明文密码**，UI 内需带安全提示；导入仅入「已保存连接」列表、不自动连接、重名跳过。
-   - 剪贴板复制用 `src/utils/clipboard.ts`，兼容本地 HTTP 环境。
+3. **连接导入/导出（复制/粘贴）行为约定**：导出**含明文密码**，UI 必须带安全提示；导入仅入「已保存连接」列表、不自动连接、重名跳过。纯逻辑在 `src/utils/connectionTransfer.ts`，剪贴板在 `src/utils/clipboard.ts`（详见 §二，勿在 UI 内直接写 DB）。
 4. **提交前**：务必 `npm run build` 通过类型检查与构建；第三方告警（如 `@vueuse/core` 注释告警）与本次改动无关可忽略，但不得引入新的类型错误。
 
 ---
@@ -67,5 +60,6 @@
 ## 四、给后续 agent 的提示
 
 - 收到"加功能 / 改架构"类需求 → 先读 §一 定级 → 常规任务先查 `src/utils/`、`src/stores/` 复用 → 新逻辑优先放 `utils/` 纯模块。
-- 涉及连接 / 登录 / 联动逻辑 → 先读 `src/stores/auth.ts`、`src/utils/db.ts`、`src/utils/connectionTransfer.ts`，理解现有契约再动手。
+- 涉及连接 / 登录逻辑 → 先读 `src/stores/auth.ts`、`src/utils/db.ts`、`src/utils/connectionTransfer.ts`，理解现有契约再动手。
+- 涉及联动（账户 ↔ 其它账户）逻辑 → 先读 `src/stores/linkage.ts`、`src/api/linkage.ts`、`src/components/linkage/`，**不要与 `auth.ts` 的连接逻辑混淆**（两者是不同模块）。
 - 不确定用户意图时，先推断、再行动；确实需要信息时再提问（参照 SOUL 约束：resourceful before asking）。
