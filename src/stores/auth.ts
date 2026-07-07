@@ -13,6 +13,7 @@ import {
   deleteAccount,
   type StoredAccount,
 } from '@/utils/db'
+import { parseConnections, resolveImportItems } from '@/utils/connectionTransfer'
 import { ElMessage } from 'element-plus'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -153,7 +154,32 @@ export const useAuthStore = defineStore('auth', () => {
       user,
       lastLoginAt: new Date(l).toISOString(),
     }))
-    return JSON.stringify(data, null, 2)
+  return JSON.stringify(data, null, 2)
+}
+
+  /**
+   * 导入连接配置文本（来自粘贴）。
+   *
+   * 编排逻辑：解析（模块）→ 去重（模块）→ 逐条落库 → 刷新内存。
+   * 仅入列、不自动连接、重名跳过（需求决策 D4）。
+   */
+  async function importConnections(
+    text: string,
+  ): Promise<{ imported: number; skipped: number; error?: string }> {
+    const parsed = parseConnections(text)
+    if (!parsed.ok) {
+      return { imported: 0, skipped: 0, error: parsed.error }
+    }
+    const latest = await getAllAccounts()
+    const { toImport, skipped } = resolveImportItems(
+      parsed.items,
+      latest.map((a) => a.name),
+    )
+    for (const acc of toImport) {
+      await saveAccount(acc)
+    }
+    await loadAccounts()
+    return { imported: toImport.length, skipped }
   }
 
   return {
@@ -176,5 +202,6 @@ export const useAuthStore = defineStore('auth', () => {
     removeAccount,
     logout,
     exportAccounts,
+    importConnections,
   }
 })

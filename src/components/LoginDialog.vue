@@ -8,8 +8,10 @@
  */
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Connection, Plus, Delete, Download, Loading } from '@element-plus/icons-vue'
+import { User, Connection, Plus, Delete, Download, Loading, DocumentCopy, Upload } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { serializeConnections } from '@/utils/connectionTransfer'
+import ConnectionTransferDialog from '@/components/ConnectionTransferDialog.vue'
 import type { StoredAccount } from '@/utils/db'
 
 const props = defineProps<{
@@ -113,6 +115,44 @@ function handleReconnect(account: StoredAccount) {
   handleSelectAccount(account)
 }
 
+// ---- 连接配置 复制 / 粘贴导入 ----
+
+const transferVisible = ref(false)
+const transferMode = ref<'export' | 'import'>('export')
+const transferText = ref('')
+
+/** 单条复制：打开导出弹窗并预填该连接配置 */
+function openCopyOne(account: StoredAccount) {
+  transferMode.value = 'export'
+  transferText.value = serializeConnections([account])
+  transferVisible.value = true
+}
+
+/** 批量复制：打开导出弹窗并预填全部连接配置 */
+function openCopyAll() {
+  transferMode.value = 'export'
+  transferText.value = serializeConnections(auth.accounts)
+  transferVisible.value = true
+}
+
+/** 粘贴导入：打开导入弹窗 */
+function openImport() {
+  transferMode.value = 'import'
+  transferText.value = ''
+  transferVisible.value = true
+}
+
+/** 消费者处理导入：调 auth 编排方法，反馈结果后关闭 */
+async function handleImport(text: string) {
+  const res = await auth.importConnections(text)
+  if (res.error) {
+    ElMessage.error(res.error)
+    return
+  }
+  ElMessage.success(`已导入 ${res.imported} 条，跳过 ${res.skipped} 条（名称重复）`)
+  transferVisible.value = false
+}
+
 function handleClose() {
   emit('update:visible', false)
 }
@@ -176,6 +216,15 @@ function handleClose() {
               <el-button
                 text
                 size="small"
+                :icon="DocumentCopy"
+                :disabled="connectingAccount !== null"
+                @click="openCopyOne(acc)"
+              >
+                复制
+              </el-button>
+              <el-button
+                text
+                size="small"
                 type="primary"
                 :icon="Connection"
                 :loading="connectingAccount === acc.name"
@@ -201,6 +250,12 @@ function handleClose() {
         <div v-if="auth.accounts.length > 0" class="tab-footer">
           <el-button size="small" @click="activeTab = 'new'">
             <el-icon><Plus /></el-icon>新建连接
+          </el-button>
+          <el-button size="small" @click="openCopyAll">
+            <el-icon><DocumentCopy /></el-icon>复制全部
+          </el-button>
+          <el-button size="small" @click="openImport">
+            <el-icon><Upload /></el-icon>粘贴导入
           </el-button>
           <el-button size="small" @click="handleExport">
             <el-icon><Download /></el-icon>导出清单
@@ -239,6 +294,14 @@ function handleClose() {
         <span>{{ connectingAccount ?? '正在连接...' }}</span>
       </div>
     </div>
+
+    <!-- 连接配置 复制 / 粘贴导入 共享弹窗 -->
+    <ConnectionTransferDialog
+      v-model:visible="transferVisible"
+      :mode="transferMode"
+      :text="transferText"
+      @import="handleImport"
+    />
   </el-dialog>
 </template>
 
