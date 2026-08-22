@@ -26,6 +26,16 @@ const dsnameError = ref('')
 
 const objectId = computed(() => editor.currentObjectId)
 const selectedMenuName = computed(() => editor.selectedMenu?.cname ?? editor.selectedMenu?.ename ?? '')
+// 页面级基础资料：用于空清单场景下填补首条语句的 TABNAME，
+// 避免新增依赖「已有语句行」而失败。
+const menuName = computed(() => editor.selectedMenu?.cname || editor.selectedMenu?.ename || '')
+
+// 下一条语句序号：本地推算，不查服务端。
+// 空清单 → 1；否则取已加载清单中最大 TABSEQ + 1。
+const nextSeq = computed(() => {
+  const seqs = editor.statements.map((s) => s.tabseq)
+  return seqs.length ? Math.max(...seqs) + 1 : 1
+})
 
 function open() {
   dsname.value = ''
@@ -70,6 +80,8 @@ async function handleCreate() {
       objectId.value,
       dsname.value.trim(),
       auth.currentUser,
+      nextSeq.value,
+      menuName.value ? { TABNAME: menuName.value } : undefined,
     )
     // 关闭弹窗
     visible.value = false

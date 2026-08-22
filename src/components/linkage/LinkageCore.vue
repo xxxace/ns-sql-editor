@@ -47,6 +47,14 @@ const auth = useAuthStore()
 const editor = useEditorStore()
 const linkage = useLinkageStore()
 
+// 主会话页面级基础资料：同步 INSERT 时需要填补 TABNAME，
+// 避免空清单（无已有语句行可继承）时同步失败。
+// 与 Feature A「新增语句」同一根因——TABNAME 需从菜单信息取得。
+const mainPageMenuName = computed(() => {
+  const node = editor.menuNodes.find((n) => n.objectId === linkage.selectedPageObjectId)
+  return node?.cname || node?.ename || ''
+})
+
 // ---- 会话过期弹窗 ----
 const expiredDialogVisible = ref(false)
 const expiredType = ref<'主会话' | '目标会话'>('目标会话')
@@ -170,10 +178,14 @@ watch(
 )
 
 // ---- 自动对比：两边数据都就绪时触发 ----
+// 注意：主会话清单为空时（页面尚无任何语句）也要允许对比——
+// compareStatements 的第二循环会把目标会话中的每条都标为 only-target，
+// 从而让「同步」按钮出现，支持把目标会话的语句整批同步进空的主会话。
+// 仅当目标会话清单为空时才跳过对比（无目标可比对）。
 function maybeCompare() {
   const mainItems = linkage.mainStatements
   const targetItems = linkage.targetStatements
-  if (mainItems.length === 0 || targetItems.length === 0) {
+  if (targetItems.length === 0) {
     linkage.setCompareResults([])
     return
   }
@@ -290,6 +302,14 @@ async function handleSync(items: CompareStatementItem[]) {
   let successCount = 0
   let failCount = 0
 
+  // 起始序号本地推算：主清单已加载到 store，空→1，非空→max(TABSEQ)+1。
+  // 这样同步进【空主清单】时完全不查主库（那个查询结果恒为 1，无意义）。
+  const startSeq = linkage.mainStatements.reduce(
+    (max, s) => Math.max(max, s.tabseq),
+    0,
+  ) + 1
+  let seq = startSeq
+
   for (const item of items) {
     if (!item.targetRaw || !linkage.selectedPageObjectId) continue
     try {
@@ -298,7 +318,10 @@ async function handleSync(items: CompareStatementItem[]) {
         linkage.selectedPageObjectId,
         auth.currentUser,
         item.targetRaw,
+        seq,
+        mainPageMenuName.value ? { TABNAME: mainPageMenuName.value } : undefined,
       )
+      seq++
       successCount++
     } catch {
       failCount++

@@ -19,7 +19,7 @@ import { ref } from 'vue'
 import { ElMessage, ElMessageBox, ElTooltip } from 'element-plus'
 import {
   Plus, Switch, Upload, RefreshLeft,
-  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock, Link,
+  DocumentCopy, View, FullScreen, Close, ArrowDown, Tickets, Lock, Unlock, Link, MagicStick,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useEditorStore } from '@/stores/editor'
@@ -34,6 +34,7 @@ const emit = defineEmits<{
   'save-draft': []
   'toggle-draft-drawer': []
   'open-linkage': []
+  'open-playground': []
 }>()
 
 const auth = useAuthStore()
@@ -159,6 +160,10 @@ function handleToggleLock() {
 function handleLinkage() {
   emit('open-linkage')
 }
+
+function handlePlayground() {
+  emit('open-playground')
+}
 </script>
 
 <template>
@@ -179,6 +184,15 @@ function handleLinkage() {
     <div class="toolbar-section">
       <el-tooltip content="对比两个服务间的语句差异，支持同步和更新" placement="bottom">
         <el-button size="small" text :icon="Link" :disabled="editor.isLoadingSql" @click="handleLinkage">跨服务对比</el-button>
+      </el-tooltip>
+    </div>
+
+    <div class="toolbar-divider" />
+
+    <!-- Playground 区 -->
+    <div class="toolbar-section">
+      <el-tooltip content="SQL Playground：随便写 SQL 并保存本地存档（不执行）" placement="bottom">
+        <el-button size="small" text :icon="MagicStick" @click="handlePlayground">SQL Playground</el-button>
       </el-tooltip>
     </div>
 

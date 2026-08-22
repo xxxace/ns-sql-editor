@@ -24,11 +24,23 @@ import SortByEditor from '@/components/SortByEditor.vue'
 import DiffPanel from '@/components/DiffPanel.vue'
 import DraftDrawer from '@/components/DraftDrawer.vue'
 import LinkageDialog from '@/components/linkage/LinkageDialog.vue'
+import PlaygroundView from '@/components/PlaygroundView.vue'
 import { useLinkageStore } from '@/stores/linkage'
 
 const auth = useAuthStore()
 const editor = useEditorStore()
 const linkage = useLinkageStore()
+
+// ---- 视图模式：'editor' 三栏主编辑器 / 'playground' SQL Playground 独占整版 ----
+const viewMode = ref<'editor' | 'playground'>('editor')
+
+function openPlayground() {
+  viewMode.value = 'playground'
+}
+
+function closePlayground() {
+  viewMode.value = 'editor'
+}
 
 // ---- 登录弹窗（工具栏触发） ----
 const loginDialogVisible = ref(false)
@@ -254,14 +266,22 @@ async function handleReloadStatement() {
 
     <!-- ===== 已登录内容 ===== -->
     <template v-if="auth.isLoggedIn">
-      <SqlToolbar
-        @open-login="openLoginFromToolbar"
-        @open-login-new="openLoginNewTab"
-        @toggle-draft-drawer="editor.toggleDraftDrawer()"
-        @open-linkage="handleOpenLinkage"
+      <!-- SQL Playground：独占整版，替换三栏布局 -->
+      <PlaygroundView
+        v-if="viewMode === 'playground'"
+        @back="closePlayground"
       />
 
-      <div class="editor-layout flex-row flex-1 overflow-hidden">
+      <template v-else>
+        <SqlToolbar
+          @open-login="openLoginFromToolbar"
+          @open-login-new="openLoginNewTab"
+          @toggle-draft-drawer="editor.toggleDraftDrawer()"
+          @open-linkage="handleOpenLinkage"
+          @open-playground="openPlayground"
+        />
+
+        <div class="editor-layout flex-row flex-1 overflow-hidden">
         <!-- 菜单树（专注模式隐藏） -->
         <Transition name="panel-slide">
           <MenuTree
@@ -319,6 +339,7 @@ async function handleReloadStatement() {
 
       <!-- Feature B: 联动对比弹窗 -->
       <LinkageDialog />
+      </template>
     </template>
 
     <!-- 全局 resize 遮罩（拖拽时不触发 iframe/编辑区事件） -->

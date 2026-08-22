@@ -12,8 +12,8 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 import * as Monaco from "monaco-editor";
-import { format as sqlFormat } from "sql-formatter";
 import { createEditor } from "@/utils/monaco";
+import { formatSqlText } from "@/utils/sqlFormat";
 import { useEditorStore } from "@/stores/editor";
 
 const store = useEditorStore();
@@ -50,47 +50,32 @@ function runFormat() {
   }
   isFormatting = true;
   try {
-    const dialects: Array<"plsql" | "sql"> = ["plsql", "sql"];
-    for (const lang of dialects) {
-      try {
-        const formatted = sqlFormat(sql, {
-          language: lang,
-          tabWidth: 2,
-          useTabs: false,
-          keywordCase: "upper",
-          linesBetweenQueries: 2,
-          denseOperators: false,
-          newlineBeforeSemicolon: false,
-        });
-
-        const model = editor!.getModel();
-        if (!model) return;
-
-        // 直接写 editor（进入 undo 栈 → 用户可用 Ctrl+Z 撤销格式化）
-        syncingFromStore = true;
-        editor!.executeEdits("format", [
-          {
-            range: model.getFullModelRange(),
-            text: formatted,
-            forceMoveMarkers: true,
-          },
-        ]);
-        editor!.pushUndoStop();
-
-        // 同步 store → watch 因 modelVal === formatted 直接 return，不触发 setValue
-        store.setSql(formatted, false);
-        store.checkModified();
-        syncingFromStore = false;
-
-        ElMessage.success(
-          `格式化完成 (${lang === "plsql" ? "Oracle PL/SQL" : "通用 SQL"})`,
-        );
-        return;
-      } catch {
-        // fallback to next dialect
-      }
+    const formatted = formatSqlText(sql);
+    if (formatted === null) {
+      ElMessage.warning("格式化失败，SQL 包含无法识别的语法，请检查后重试");
+      return;
     }
-    ElMessage.warning("格式化失败，SQL 包含无法识别的语法，请检查后重试");
+
+    const model = editor!.getModel();
+    if (!model) return;
+
+    // 直接写 editor（进入 undo 栈 → 用户可用 Ctrl+Z 撤销格式化）
+    syncingFromStore = true;
+    editor!.executeEdits("format", [
+      {
+        range: model.getFullModelRange(),
+        text: formatted,
+        forceMoveMarkers: true,
+      },
+    ]);
+    editor!.pushUndoStop();
+
+    // 同步 store → watch 因 modelVal === formatted 直接 return，不触发 setValue
+    store.setSql(formatted, false);
+    store.checkModified();
+    syncingFromStore = false;
+
+    ElMessage.success("格式化完成");
   } finally {
     isFormatting = false;
     syncingFromStore = false;

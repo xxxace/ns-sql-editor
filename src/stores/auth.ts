@@ -108,6 +108,67 @@ export const useAuthStore = defineStore('auth', () => {
     await loadAccounts()
   }
 
+  /**
+   * 编辑已有连接 — 仅落库并同步会话状态，不自动重连（需求决策）。
+   *
+   * 规则：
+   * - password 为 undefined → 保留原密码；为字符串 → 直接覆盖（空串 = 清空密码）
+   * - 改名 = 删旧建新（先存新 key 成功后再删旧 key，防止中途失败丢数据）
+   * - 改名撞名（目标连接名已存在）→ 拒绝，防止覆盖他人连接
+   * - 编辑的是当前连接且 serverUrl / user 变更 → 旧 session 必然失效，登出并提示重连；
+   *   仅改连接名/密码 → 同步当前会话状态，session 保留
+   *
+   * @returns sessionInvalidated=true 表示当前会话已失效，调用方应提示用户重新连接
+   */
+  async function updateAccount(
+    oldName: string,
+    patch: { name: string; serverUrl: string; user: string; password?: string },
+  ): Promise<{ ok: boolean; error?: string; sessionInvalidated?: boolean }> {
+    const old = accounts.value.find((a) => a.name === oldName)
+    if (!old) return { ok: false, error: `未找到连接: ${oldName}` }
+
+    const newName = patch.name.trim()
+    const newUrl = patch.serverUrl.trim()
+    const newUser = patch.user.trim()
+    if (!newName || !newUrl || !newUser) {
+      return { ok: false, error: '连接名、服务器地址和用户名不能为空' }
+    }
+    if (newName !== oldName && accounts.value.some((a) => a.name === newName)) {
+      return { ok: false, error: `连接名「${newName}」已存在` }
+    }
+
+    const merged: StoredAccount = {
+      ...old,
+      name: newName,
+      serverUrl: newUrl,
+      user: newUser,
+      ...(patch.password !== undefined ? { password: patch.password } : {}),
+      updatedAt: Date.now(),
+    }
+
+    // 先存新 key（改名场景），成功后再删旧 key
+    await saveAccount(merged)
+    if (newName !== oldName) {
+      await deleteAccount(oldName)
+    }
+    await loadAccounts()
+
+    // 当前连接同步
+    let sessionInvalidated = false
+    if (currentName.value === oldName) {
+      if (newUrl !== old.serverUrl || newUser !== old.user) {
+        // 服务器地址或账号变更 → 旧 session 必然失效
+        sessionInvalidated = true
+        logout()
+      } else {
+        currentName.value = newName
+        currentUser.value = newUser
+        serverUrl.value = newUrl
+      }
+    }
+    return { ok: true, sessionInvalidated }
+  }
+
   /** 登出（清会话） */
   function logout() {
     currentName.value = ''
@@ -200,6 +261,7 @@ export const useAuthStore = defineStore('auth', () => {
     reconnect,
     silentLogin,
     removeAccount,
+    updateAccount,
     logout,
     exportAccounts,
     importConnections,

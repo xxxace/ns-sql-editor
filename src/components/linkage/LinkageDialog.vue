@@ -94,7 +94,7 @@ function handleClose() {
   white-space: nowrap;
 }
 
-.main-session-tag :deep(.el-icon) {
+.main-session-tag .el-icon {
   margin-right: 4px;
   vertical-align: middle;
 }

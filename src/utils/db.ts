@@ -103,3 +103,38 @@ export async function getAllDrafts(connectionName: string): Promise<DraftRecord[
   result.sort((a, b) => b.savedAt - a.savedAt)
   return result
 }
+
+// ===== Playgrounds =====
+// SQL Playground 存档：与语句草稿（drafts）语义隔离的独立 store。
+// 存档不关联连接（需求决策），全局共享，按保存时间倒序。
+
+export interface PlaygroundRecord {
+  /** 存档唯一 id */
+  id: string
+  /** 存档标题 */
+  title: string
+  /** SQL 内容 */
+  sql: string
+  /** 保存时间 */
+  savedAt: number
+}
+
+const playgroundsStore = localforage.createInstance({ name: 'ns-sql-editor', storeName: 'playgrounds' })
+
+/** 获取全部存档，按保存时间倒序 */
+export async function getAllPlaygrounds(): Promise<PlaygroundRecord[]> {
+  const result: PlaygroundRecord[] = []
+  await playgroundsStore.iterate<PlaygroundRecord, void>((value) => {
+    result.push(value)
+  })
+  result.sort((a, b) => b.savedAt - a.savedAt)
+  return result
+}
+
+export async function savePlayground(record: PlaygroundRecord): Promise<void> {
+  await playgroundsStore.setItem(record.id, record)
+}
+
+export async function deletePlayground(id: string): Promise<void> {
+  await playgroundsStore.removeItem(id)
+}

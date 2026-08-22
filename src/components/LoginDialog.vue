@@ -8,10 +8,11 @@
  */
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { User, Connection, Plus, Delete, Download, Loading, DocumentCopy, Upload } from '@element-plus/icons-vue'
+import { User, Connection, Plus, Delete, Download, Loading, DocumentCopy, Upload, EditPen } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { serializeConnections } from '@/utils/connectionTransfer'
 import ConnectionTransferDialog from '@/components/ConnectionTransferDialog.vue'
+import EditAccountDialog from '@/components/EditAccountDialog.vue'
 import type { StoredAccount } from '@/utils/db'
 
 const props = defineProps<{
@@ -153,6 +154,41 @@ async function handleImport(text: string) {
   transferVisible.value = false
 }
 
+// ---- 编辑已保存连接 ----
+
+const editVisible = ref(false)
+const editingAccount = ref<StoredAccount | null>(null)
+const savingEdit = ref(false)
+
+/** 打开编辑弹窗并预填该连接 */
+function openEdit(account: StoredAccount) {
+  editingAccount.value = account
+  editVisible.value = true
+}
+
+/** 消费者处理编辑保存：调 auth 编排方法，反馈结果后关闭 */
+async function handleEditSave(patch: { name: string; serverUrl: string; user: string; password?: string }) {
+  if (!editingAccount.value) return
+  savingEdit.value = true
+  try {
+    const res = await auth.updateAccount(editingAccount.value.name, patch)
+    if (!res.ok) {
+      ElMessage.error(res.error || '保存失败')
+      return
+    }
+    if (res.sessionInvalidated) {
+      ElMessage.warning('已保存。连接信息已变更，当前会话已失效，请重新连接')
+    } else {
+      ElMessage.success('已保存')
+    }
+    editVisible.value = false
+  } catch {
+    ElMessage.error('保存失败：网络或本地存储错误')
+  } finally {
+    savingEdit.value = false
+  }
+}
+
 function handleClose() {
   emit('update:visible', false)
 }
@@ -213,6 +249,15 @@ function handleClose() {
               </div>
             </div>
             <div class="account-actions" @click.stop>
+              <el-button
+                text
+                size="small"
+                :icon="EditPen"
+                :disabled="connectingAccount !== null"
+                @click="openEdit(acc)"
+              >
+                编辑
+              </el-button>
               <el-button
                 text
                 size="small"
@@ -301,6 +346,14 @@ function handleClose() {
       :mode="transferMode"
       :text="transferText"
       @import="handleImport"
+    />
+
+    <!-- 编辑已保存连接弹窗 -->
+    <EditAccountDialog
+      v-model:visible="editVisible"
+      :account="editingAccount"
+      :saving="savingEdit"
+      @save="handleEditSave"
     />
   </el-dialog>
 </template>

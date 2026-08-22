@@ -7,7 +7,7 @@
 // @ts-ignore
 import { generateWhere } from '@nameson/sqlutils'
 import { searchDataWithAuth, saveData } from '@/api/nameson'
-import { getMaxTabseq, buildInsertModel, buildUpdateModel } from '@/api/statement'
+import { buildInsertModel, buildUpdateModel, type StatementFields } from '@/api/statement'
 import type { TargetStatementItem } from '@/stores/linkage'
 
 // ---- SQL 常量 ----
@@ -112,19 +112,23 @@ export async function syncStatement(
   mainObjectId: string,
   currentUser: string,
   source: TargetStatementItem,
+  nextSeq: number,
+  extraFields?: StatementFields,
 ): Promise<void> {
-  let nextSeq: number
-  try {
-    nextSeq = await getMaxTabseq(mainServerUrl, mainObjectId)
-  } catch (e) {
-    throw new Error(`获取序号失败: ${e instanceof Error ? e.message : '未知错误'}`)
-  }
+  // 注意：不再查询主会话数据库获取序号。
+  // 主清单为空时该查询无意义（结果恒为 1），且空页面同步本就不需要读主库；
+  // 序号由调用方（handleSync）基于已加载的主清单本地推算后传入，
+  // 避免「同步进空页面却反复查主库取序号」的无意义请求。
 
+  // extraFields 用于填补页面级「基础资料」（如 TABNAME）：
+  // 当主会话页面尚无任何语句、无法从已有行继承时，由调用方用菜单信息传入，
+  // 保证空清单也能成功把目标会话语句同步进来（与 Feature A createStatement 同一根因）。
   const model = buildInsertModel(mainObjectId, nextSeq, {
     DSNAME: source.dsname,
     DBQUERY: source.dbquery,
     SORTBYCONTENT: source.sortByContent,
     REF1: source.ref1,
+    ...extraFields,
   }, currentUser)
 
   // 同步写入主会话，不走 injectAuth，但主会话就是当前登录，直接用 saveData

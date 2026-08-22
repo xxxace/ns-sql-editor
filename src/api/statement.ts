@@ -2,13 +2,13 @@
  * api/statement.ts — 共享语句操作 API
  *
  * Feature A（手动新增占位语句）和 Feature B（同步/更新语句）
- * 共用 getMaxTabseq / buildInsertModel / buildUpdateModel 底层方法。
+ * 共用 buildInsertModel / buildUpdateModel 底层方法。
  */
 // @ts-ignore
 import type { ColdataModel } from '@nameson/sqlutils'
 // @ts-ignore
-import { generateWhere, generateDataModel } from '@nameson/sqlutils'
-import { searchData, saveData } from '@/api/nameson'
+import { generateDataModel } from '@nameson/sqlutils'
+import { saveData } from '@/api/nameson'
 
 // ---- 类型 ----
 
@@ -24,28 +24,6 @@ export interface StatementFields {
   TABNAME?: string
   PK_COLNAMES?: string
   [key: string]: unknown
-}
-
-// ---- 最大序号查询 ----
-
-const MAXSEQ_SQL = 'SELECT OBJECTID,TABSEQ,DSNAME,DBQUERY,SORTBYCONTENT,ADDUSER,ADDDTTM,UPDUSER,UPDDTTM FROM PRJOBJDS'
-
-/**
- * 获取下一条语句的 TABSEQ（MAX+1）
- *
- * 规则 4: SELECT NVL(MAX(TABSEQ), 0) + 1 FROM PRJOBJDS WHERE OBJECTID=...
- */
-export async function getMaxTabseq(serverUrl: string, objectId: string): Promise<number> {
-  const where = generateWhere({ OBJECTID: objectId })
-  const res = await searchData(serverUrl, MAXSEQ_SQL, where, 'ORDER BY TABSEQ DESC')
-  if (res.statusCode !== '1' || !Array.isArray(res.data)) {
-    throw new Error(res.message || '获取最大序号失败')
-  }
-  if (res.data.length === 0) {
-    return 1 // 该 OBJECTID 下没有任何语句，返回 1
-  }
-  const maxSeq = Number((res.data[0] as Record<string, unknown>).TABSEQ ?? 0)
-  return maxSeq + 1
 }
 
 // ---- INSERT ColdataModel 构建 ----
@@ -160,17 +138,17 @@ export async function createStatement(
   objectId: string,
   dsname: string,
   currentUser: string,
+  nextSeq: number,
+  extraFields?: StatementFields,
 ): Promise<number> {
-  let nextSeq: number
-  try {
-    nextSeq = await getMaxTabseq(serverUrl, objectId)
-  } catch (e) {
-    throw new Error(`获取序号失败: ${e instanceof Error ? e.message : '未知错误'}`)
-  }
-
+  // 占位语句：DBQUERY/SORTBYCONTENT 等留空。
+  // nextSeq 由调用方基于「已加载到本地的语句清单」本地推算（空清单 → 1，否则 max(TABSEQ)+1），
+  // 不再去服务端查询 PRJOBJDS 取最大序号——空清单场景服务端无数据可查，纯属无意义往返。
+  // extraFields 用于填补页面级「基础资料」（如 TABNAME），由调用方用菜单信息传入，
+  // 保证空清单也能成功创建第一条语句。
   const model = buildInsertModel(objectId, nextSeq, {
     DSNAME: dsname,
-    // DBQUERY, SORTBYCONTENT 等全部留空 — 占位语句
+    ...extraFields,
   }, currentUser)
 
   const res = await saveData(serverUrl, [model])
